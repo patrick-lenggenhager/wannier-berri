@@ -22,64 +22,75 @@
 #           Stepan Tsirkin, University ofZurich              #
 #                                                            #
 #------------------------------------------------------------#
+## VErsion with fractional occupation numbers. 
+##  After success I will try to   merge with the main version
+
 
 import numpy as np
 from scipy import constants as constants
 from collections import Iterable
-import berry_frac
+
 alpha=np.array([1,2,0])
 beta =np.array([2,0,1])
 fac_ahc = -1.0e8*constants.elementary_charge**2/constants.hbar
 
 
 def eval_J0(A,occ):
-    return A[occ].sum(axis=0)
+    return np.sum(A*occ[:,:,None],axis=(0,1))
 
 def eval_J12(B,unoccocc):
-    return -2*B[unoccocc].sum(axis=0)
+    return -2*np.sum(B*unoccocc[:,:,:,None],axis=(0,1,2))
 
-def get_occ(E_K,Efermi):
-    return (E_K< Efermi)
-        
-def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=None):
-    if not( smear is None):
-        return berry_frac.calcAHC(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear)
+def get_occ(E_K,Efermi,smear,argmax=10):
+    occ=np.zeros(E_K.shape,dtype=float)
+    if smear<1e-8:
+        occ[E_K< Efermi]=1.
+        return occ
+    else:
+        arg=(E_K-Efermi)/smear
+        occ[arg<-argmax]=1.
+        sel=(np.abs(arg)<=argmax)
+        nsel=np.sum(sel)
+        if nsel>0 : print nsel,' states near EF'
+        occ[ sel ]=1./(1.+np.exp(arg[sel]))
+        return occ
+    
+    
+def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=0,diff_occ_threshold=1e-5):
 
     if occ_old is None: 
-        occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=bool)
+        occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=float)
 
     if isinstance(Efermi, Iterable):
         nFermi=len(Efermi)
         AHC=np.zeros( ( nFermi,4,3) ,dtype=float )
         for iFermi in range(nFermi):
-            AHC[iFermi]=calcAHC(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2)
+            AHC[iFermi]=calcAHC(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear)
         return np.cumsum(AHC,axis=0)
     
     # now code for a single Fermi level:
     AHC=np.zeros((4,3))
 
-    occ_new=get_occ(data.E_K,Efermi)
-    unocc_new=np.logical_not(occ_new)
-    unocc_old=np.logical_not(occ_old)
-    selectK=np.where(np.any(occ_old!=occ_new,axis=1))[0]
+    occ_new=get_occ(data.E_K,Efermi,smear=smear)
+    unocc_new=1.-occ_new
+    unocc_old=1.-occ_old
+    selectK=np.where(np.any(np.abs(occ_old-occ_new)>diff_occ_threshold,axis=1))[0]
     occ_old_selk=occ_old[selectK]
     occ_new_selk=occ_new[selectK]
-    unocc_old_selk=unocc_old[selectK]
-    unocc_new_selk=unocc_new[selectK]
-    delocc=occ_new_selk!=occ_old_selk
-    unoccocc_plus=unocc_new_selk[:,:,None]*delocc[:,None,:]
-    unoccocc_minus=delocc[:,:,None]*occ_old_selk[:,None,:]
+    unocc_old_selk=1.-occ_old_selk
+    unocc_new_selk=1.-occ_new_selk
+    delocc=occ_new_selk-occ_old_selk
+    unoccocc=unocc_new_selk[:,:,None]*occ_new_selk[:,None,:]-unocc_old_selk[:,:,None]*occ_old_selk[:,None,:]
 
     if evalJ0:
         AHC[0]= eval_J0(data.OOmegaUU_K[selectK], delocc)
     if evalJ1:
         B=data.delHH_dE_AA_K[selectK]
-        AHC[1]=eval_J12(B,unoccocc_plus)-eval_J12(B,unoccocc_minus)
+        AHC[1]=eval_J12(B,unoccocc)
     if evalJ2:
         B=data.delHH_dE_SQ_K[selectK]
-        AHC[2]=eval_J12(B,unoccocc_plus)-eval_J12(B,unoccocc_minus)
+        AHC[2]=eval_J12(B,unoccocc)
     AHC[3,:]=AHC[:3,:].sum(axis=0)
 
     occ_old[:,:]=occ_new[:,:]
     return AHC*fac_ahc/(data.NKFFT_tot*data.cell_volume)
-

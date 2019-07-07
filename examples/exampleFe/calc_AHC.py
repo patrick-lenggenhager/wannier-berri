@@ -4,7 +4,7 @@ sys.path.append('../../modules/')
 
 import numpy as np
 import get_data
-import berry
+from  berry import calcAHC
 import functools
 from parallel import eval_integral_BZ
 
@@ -13,15 +13,15 @@ def main():
     seedname="Fe"
     NKFFT=np.array([int(sys.argv[2])]*3)
     NKdiv=np.array([int(sys.argv[3])]*3)
-    Efermi=np.linspace(12.,13.,5001)
+    Efermi=np.linspace(12.,13.,501)
 #    Efermi=[12.6,]
     if sys.argv[1].lower()=="tb":
         Data=get_data.Data(tb_file='Fe_tb.dat',getAA=True)
     elif sys.argv[1].lower()=="aa":
         Data=get_data.Data(seedname,getAA=True)
     
-    eval_func=functools.partial(  berry.calcAHC, Efermi=Efermi )
-    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=False,nproc=4)
+    eval_func=functools.partial(  calcAHC, Efermi=Efermi)
+    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=True,nproc=8)
 
 
     open(seedname+"_w19_ahc_fermi_scan.dat","w").write(
