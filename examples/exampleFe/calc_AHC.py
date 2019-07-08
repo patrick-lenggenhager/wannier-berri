@@ -13,7 +13,7 @@ def main():
     seedname="Fe"
     NKFFT=np.array([int(sys.argv[2])]*3)
     NKdiv=np.array([int(sys.argv[3])]*3)
-    Efermi=np.linspace(12.,13.,21)
+    Efermi=np.linspace(12.,13.,101)
 #    Efermi=[12.6,]
 
     t_start=time()

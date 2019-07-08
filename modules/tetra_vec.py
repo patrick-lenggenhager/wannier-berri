@@ -93,49 +93,47 @@ class Tetrahedra():
         self._Etetra=np.sort(self._Etetra,axis=-1)
 
 
+        self._sel_iv_1= (self._ivertex==0)
+        self._sel_iv_2= (self._ivertex==1)
+        self._sel_iv_3= (self._ivertex==2)
+        self._sel_iv_4= (self._ivertex==3)
+        self._sel_iv_123=np.logical_or(np.logical_or(self._sel_iv_1,self._sel_iv_2),self._sel_iv_3)
+        self._sel_iv_234=np.logical_or(np.logical_or(self._sel_iv_2,self._sel_iv_3),self._sel_iv_4)
+
+
+
            
     @LazyProperty
     def Ntetra(self):  
         return len(self.__TETRA_NEIGHBOURS)
 
+    def _get_e01234(self,select):
+        return (self._E0[select],)+tuple([E for E in self._Etetra[select].T])
+    
     def get_occ(self,ef):
-# TODO : save the quantities, which do not depend of Ef
+# TODO : save the quantities, which do not depend of Ef (or maybe not needed)
         weights=np.zeros(self._Etetra.shape[:-1])
 
 ##  First case :  Ef>=E4
     
-        select= ef>=self._Etetra[:,:,:,3]
-        weights[select]+=1.
+        select= (ef>=self._Etetra[:,:,:,3])
+        weights[select] = 1.
 
 ##  second case :  E4>Ef>=E3
         select= (ef<self._Etetra[:,:,:,3])*(ef>=self._Etetra[:,:,:,2])
-        E1234=self._Etetra[select]
-        E0_sel=self._E0[select]
-        iV=self._ivertex[select]
-        weights_select=np.zeros(E1234.shape[0],dtype=float)
-    
-        sel_iv= (iV<=2)
-        e1=E1234[sel_iv][:,0]
-        e2=E1234[sel_iv][:,1]
-        e3=E1234[sel_iv][:,2]
-        e4=E1234[sel_iv][:,3]
-        e0=E0_sel[sel_iv]
+
+        selectIV=select*self._sel_iv_123
+        e0,e1,e2,e3,e4=self._get_e01234(selectIV)
         c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
         dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
-        weights_select[sel_iv]  = 1.  - c4 * (e4 - ef) / (e4 - e0) + dosef 
+        weights[selectIV]  = 1.  - c4 * (e4 - ef) / (e4 - e0) + dosef 
     
-    
-        sel_iv= (iV==3)
-        e1=E1234[sel_iv][:,0]
-        e2=E1234[sel_iv][:,1]
-        e3=E1234[sel_iv][:,2]
-        e4=E1234[sel_iv][:,3]
-        e0=E0_sel[sel_iv]
+        selectIV=select*self._sel_iv_4
+        e0,e1,e2,e3,e4=self._get_e01234(selectIV)
         c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
         dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
-        weights_select[sel_iv]  = 1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2)  + 1. / (e4 - e3) ) ) + dosef 
+        weights[selectIV] = 1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2)  + 1. / (e4 - e3) ) ) + dosef 
         
-        weights[select]+=weights_select
 ##  Third and Forth case to be implemented
         
         weights=weights.sum(axis=-1)/24.
