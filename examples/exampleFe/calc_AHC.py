@@ -13,7 +13,7 @@ def main():
     seedname="Fe"
     NKFFT=np.array([int(sys.argv[2])]*3)
     NKdiv=np.array([int(sys.argv[3])]*3)
-    Efermi=np.linspace(12.,13.,501)
+    Efermi=np.linspace(12.,13.,11)
 #    Efermi=[12.6,]
 
     t_start=time()
@@ -23,8 +23,8 @@ def main():
         Data=get_data.Data(seedname,getAA=True)
     
     t_read=time()
-    eval_func=functools.partial(  calcAHC, Efermi=Efermi)
-    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=True,nproc=32)
+    eval_func=functools.partial(  calcAHC, Efermi=Efermi,tetra=True)
+    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=False,nproc=1)
     t_calc=time()
 
     open(seedname+"_w19_ahc_fermi_scan.dat","w").write(

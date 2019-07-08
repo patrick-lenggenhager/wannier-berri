@@ -56,7 +56,7 @@ def get_occ(E_K,Efermi,smear,argmax=10):
         return occ
     
     
-def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=0,diff_occ_threshold=1e-5):
+def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=0,diff_occ_threshold=1e-5,tetra=False):
 
     if occ_old is None: 
         occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=float)
@@ -68,13 +68,16 @@ def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,s
         nFermi=len(Efermi)
         AHC=np.zeros( ( nFermi,4,ncomp) ,dtype=float )
         for iFermi in range(nFermi):
-            AHC[iFermi]=calcAHC(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear)
+            AHC[iFermi]=calcAHC(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear,tetra=tetra)
         return np.cumsum(AHC,axis=0)
     
     # now code for a single Fermi level:
     AHC=np.zeros((4,ncomp))
-
-    occ_new=get_occ(data.E_K,Efermi,smear=smear)
+    
+    if tetra:
+        occ_new=data.get_occ_tetra(Efermi)
+    else:
+        occ_new=get_occ(data.E_K,Efermi,smear=smear)
     unocc_new=1.-occ_new
     unocc_old=1.-occ_old
     selectK=np.where(np.any(np.abs(occ_old-occ_new)>diff_occ_threshold,axis=1))[0]

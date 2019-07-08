@@ -114,6 +114,7 @@ class Data():
         print ("Number of K points:", self.NKFFT)
         print ("Real-space lattice:\n",self.real_lattice)
         #print ("R - points and dege=neracies:\n",iRvec)
+
         
     @lazy_property.LazyProperty
     def cRvec(self):
