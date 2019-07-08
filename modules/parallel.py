@@ -43,7 +43,7 @@ As a result, the integration will be performed ove NKFFT x NKdiv
     dk_list=[dk1*np.array([x,y,z]) for x in range(NKdiv[0]) 
         for y in range(NKdiv[1]) for z in range(NKdiv[2]) ]
     paralfunc=functools.partial(
-        _eval_func_dk, func=func,Data=Data,NKFFT=NKFFT,components_1d=components_1d )
+        _eval_func_dk, func=func,Data=Data,NKFFT=NKFFT,components_1d=components_1d,NKdiv=NKdiv )
     if parallel:
         p=multiprocessing.Pool(nproc)
         return sum(p.map(paralfunc,dk_list))/len(dk_list)
@@ -51,7 +51,7 @@ As a result, the integration will be performed ove NKFFT x NKdiv
         return sum(paralfunc(dk) for dk in dk_list)/len(dk_list)
 
 
-def _eval_func_dk(dk,func,Data,NKFFT,components_1d):
-    data_dk=Data_dk(Data,dk,NKFFT=NKFFT,components_1d=components_1d)
+def _eval_func_dk(dk,func,Data,NKFFT,components_1d,NKdiv):
+    data_dk=Data_dk(Data,dk,NKFFT=NKFFT,components_1d=components_1d,NKdiv=NKdiv)
     return func(data_dk)
 

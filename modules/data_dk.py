@@ -15,12 +15,14 @@ import numpy as np
 import wan_ham as wham
 import lazy_property
 from get_data import Data
+import tetra
 
 class Data_dk(Data):
-    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d="xyz"):
+    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d="xyz",NKdiv=None):
         self.spinors=data.spinors
         self.iRvec=data.iRvec
         self.real_lattice=data.real_lattice
+        self_NKdiv=NKdiv    
         self.NKFFT=data.NKFFT if NKFFT is None else NKFFT
         self.num_wann=data.num_wann
         # components_1d should be  a tuple of indices  0,1,2
@@ -55,12 +57,32 @@ class Data_dk(Data):
     @lazy_property.LazyProperty
     def NKFFT_tot(self):
         return np.prod(self.NKFFT)
+    
+    def _get_E_K_shifted(self,shift):
+    # shift is given in terms of "small" k-grid as integres
+    # TODO : check if the shifted grid belongs to the original or one of calculated neighbour grids
+    # So far, let's recalculate them anyway
+        dk=np.array(shift)/(self.NKFFT*self.NKdiv)
+        return Data_dk(self,dk=dk,AA=False,BB=False,CC=False,SS=Flse,NKFFT=self.NKFFT,NKdiv=self.NKdiv).E_K_only
 
+    @lazy_property.LazyProperty
+    def E_K_neighbours(self):
+        ekneigh=dict()
+        for shift in tetra.NEIGHBOURS:
+            ekneigh[shift]=self._get_E_K_shifted(shift)
+        return ekneigh
+        
+        
 
     @lazy_property.LazyProperty
     def E_K(self):
         self._get_eig_deleig
         return self._E_K
+
+    @lazy_property.LazyProperty
+    def E_K_only(self):
+        return wham.get_eig(self.NKFFT,self.HH_R,self.iRvec)
+
 
     @lazy_property.LazyProperty
     def delE_K(self):

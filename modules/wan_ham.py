@@ -86,9 +86,9 @@ def get_eig_HH_UU(NK,HH_R,iRvec):
 
 def get_eig(NK,HH_R,iRvec):
     num_wann=HH_R.shape[0]
-    HH_K=fourier_R_to_k(HH_R,iRvec,NK)
-    check=np.max( [np.abs(H-H.T.conj()).max() for H in HH_K] )
-    if check>1e-10 : raise RuntimeError ("Hermiticity of interpolated Hamiltonian is not good : {0}".format(check))
+    HH_K=fourier_R_to_k_hermitian(HH_R,iRvec,NK)
+#    check=np.max( [np.abs(H-H.T.conj()).max() for H in HH_K] )
+#    if check>1e-10 : raise RuntimeError ("Hermiticity of interpolated Hamiltonian is not good : {0}".format(check))
     return np.array([np.linalg.eigvalsh(Hk) for Hk in HH_K])
 
 

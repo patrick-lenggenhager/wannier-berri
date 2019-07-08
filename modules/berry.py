@@ -19,7 +19,7 @@
 #------------------------------------------------------------#
 #                                                            #
 #  Translated to python and adapted for wannier19 project by #
-#           Stepan Tsirkin, University ofZurich              #
+#           Stepan Tsirkin, University of Zurich             #
 #                                                            #
 #------------------------------------------------------------#
 
