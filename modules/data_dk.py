@@ -18,11 +18,11 @@ from get_data import Data
 import tetra
 
 class Data_dk(Data):
-    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d="xyz",NKdiv=None):
+    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d=(0,1,2),NKdiv=None):
         self.spinors=data.spinors
         self.iRvec=data.iRvec
         self.real_lattice=data.real_lattice
-        self_NKdiv=NKdiv    
+        self.NKdiv=NKdiv    
         self.NKFFT=data.NKFFT if NKFFT is None else NKFFT
         self.num_wann=data.num_wann
         # components_1d should be  a tuple of indices  0,1,2
@@ -63,16 +63,26 @@ class Data_dk(Data):
     # TODO : check if the shifted grid belongs to the original or one of calculated neighbour grids
     # So far, let's recalculate them anyway
         dk=np.array(shift)/(self.NKFFT*self.NKdiv)
-        return Data_dk(self,dk=dk,AA=False,BB=False,CC=False,SS=Flse,NKFFT=self.NKFFT,NKdiv=self.NKdiv).E_K_only
+        return Data_dk(self,dk=dk,AA=False,BB=False,CC=False,SS=False,NKFFT=self.NKFFT,NKdiv=self.NKdiv).E_K_only
 
     @lazy_property.LazyProperty
     def E_K_neighbours(self):
         ekneigh=dict()
         for shift in tetra.NEIGHBOURS:
             ekneigh[shift]=self._get_E_K_shifted(shift)
-        return ekneigh
-        
-        
+        ekneigh_K=[
+           dict( {shift:ekneigh[shift][ik] for shift in tetra.NEIGHBOURS})
+              for ik in range(self.NKFFT_tot)
+                   ]
+        return ekneigh_K
+
+    def get_occ_tetra(self,Ef):
+        print ("evaluating occ tetra for Ef=",Ef)
+        occ=np.zeros(self.E_K.shape)
+        for ik in range(self.NKFFT_tot):
+            occ[ik]=tetra.get_occ(self.E_K[ik],self.E_K_neighbours[ik],Ef)
+        return occ
+            
 
     @lazy_property.LazyProperty
     def E_K(self):

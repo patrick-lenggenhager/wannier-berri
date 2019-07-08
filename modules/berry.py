@@ -41,11 +41,11 @@ def eval_J12(B,unoccocc):
 def get_occ(E_K,Efermi):
     return (E_K< Efermi)
         
-def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=None):
+def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=None,tetra=False):
 
 
-    if not( smear is None):
-        return berry_frac.calcAHC(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear)
+    if not( smear is None) or tetra:
+        return berry_frac.calcAHC(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear,tetra=tetra)
 
     if occ_old is None: 
         occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=bool)

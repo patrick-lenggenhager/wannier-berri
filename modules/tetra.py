@@ -63,16 +63,16 @@ NEIGHBOURS=set(tuple(p) for t in __TETRA_NEIGHBOURS for p in t)
 
 
 # returns occupation factor of a band at a k-point in a corner of a tetrahedron
-def weights_1band(etetra,Ef):
+def weights_1band(etetra,ef):
     # energies will be sorted, remember which is at the corner of interest
-    e0=etetea[0]
+    e0=etetra[0]
     ivertex=np.sum(e0>etetra[1:])
     e1,e2,e3,e4=np.sort(etetra)
   
 #    weights[Ef>=etetra[3]]=1.
-    if Ef>=e4:
+    if ef>=e4:
         return 1.
-    elif Ef>=e3:
+    elif ef>=e3:
         c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
         dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
         if   ivertex in (0,1,2) :
@@ -80,7 +80,7 @@ def weights_1band(etetra,Ef):
         elif   ivertex==3: 
             return 1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2) 
                    + 1. / (e4 - e3) ) ) + dosef 
-    elif Ef>=e2:
+    elif ef>=e2:
         c1 = (ef - e1) **2 / ((e4 - e1) * (e3 - e1))
         c2 = (ef - e1) * (ef - e2) * (e3 - ef)  / ((e4 - e1) * (e3 - e2) * (e3 - e1))
         c3 = (ef - e2) **2 * (e4 - ef) /( (e4 - e2)  * (e3 - e2) * (e4 - e1))
@@ -95,7 +95,7 @@ def weights_1band(etetra,Ef):
             return  (c1 + c2) * (ef - e1) / (e3 - e1) + (c2 + c3) * (ef - e2) / (e3 - e2) + dosef 
         elif ivertex==3:
             return  (c1 + c2 + c3) * (ef - e1)  / (e4 - e1) + c3 * (ef - e2) / (e4 - e2) + dosef 
-    elif Ef>=e1:
+    elif ef>=e1:
         c4 = (ef - e1) **3 / (e2 - e1) / (e3 - e1) / (e4 - e1)
         dosef = 0.3 * (ef - e1) **2 / (e2 - e1) / (e3 - e1) / (e4 - e1) * (e1 + e2 + e3 + e4 - 4. * e0 ) 
         if   ivertex==0:
@@ -114,13 +114,12 @@ def average_degen(E,weights):
        weights[b1:b2]=weights[b1:b2].mean()
 
 def weights_all_bands_1tetra(Etetra,Ef):
-    weights=np.array([weights_1band(etetra,ef) for etetra in Etetra])
+    return np.array([weights_1band(etetra,Ef) for etetra in Etetra])
 
-def occ_factors(E,E_neigh,Ef):
+def get_occ(E,E_neigh,Ef):
 #  E_neigh is a dict (i,j,k):E 
 # where i,j,k = -1,0,+1 - are coordinates of a k-point, relative to the reference point
     num_wann=E.shape[0]
-    assert( num_wann.shape[:3]==(3,3,3))
     occ=np.zeros(num_wann)
     weights=np.zeros(num_wann)
     Etetra=np.zeros( (num_wann,4),dtype=float)
@@ -131,6 +130,6 @@ def occ_factors(E,E_neigh,Ef):
           weights+=weights_all_bands_1tetra(Etetra,Ef)
     
     average_degen(E,weights)
-    return weights
+    return weights/24.
 
     
