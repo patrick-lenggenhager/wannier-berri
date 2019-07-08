@@ -65,22 +65,27 @@ class Data_dk(Data):
         dk=np.array(shift)/(self.NKFFT*self.NKdiv)
         return Data_dk(self,dk=dk,AA=False,BB=False,CC=False,SS=False,NKFFT=self.NKFFT,NKdiv=self.NKdiv).E_K_only
 
-    @lazy_property.LazyProperty
-    def E_K_neighbours(self):
-        ekneigh=dict()
-        for shift in tetra.NEIGHBOURS:
-            ekneigh[shift]=self._get_E_K_shifted(shift)
-#        ekneigh_K=[
-#           dict( {shift:ekneigh[shift][ik] for shift in tetra.NEIGHBOURS})
-#              for ik in range(self.NKFFT_tot)
-#                   ]
-        return ekneigh
 
-    def get_occ_tetra(self,Ef):
-        print ("evaluating occ tetra for Ef=",Ef)
-        return tetra.get_occ(self.E_K,self.E_K_neighbours,Ef)
-        return occ
-            
+    @lazy_property.LazyProperty
+    def _tetra(self):
+        return tetra.Tetrahedra(self)
+
+    def get_occ(self,Ef,smear=None,tetra=False,argmax=10):
+        if tetra:
+            print ("evaluating occ tetra for Ef=",Ef)
+            return self._tetra.get_occ(Ef)
+        else:
+            occ=np.zeros(self._E_K.shape,dtype=float)
+            if (smear is None) or (smear<1e-8):
+                occ[self._E_K< Efermi]=1.
+            else:
+                arg=(self._E_K-Efermi)/smear
+                occ[arg<-argmax]=1.
+                sel=(np.abs(arg)<=argmax)
+                occ[ sel ]=1./(1.+np.exp(arg[sel]))
+            return occ
+
+
 
     @lazy_property.LazyProperty
     def E_K(self):
@@ -89,8 +94,11 @@ class Data_dk(Data):
 
     @lazy_property.LazyProperty
     def E_K_only(self):
-        return wham.get_eig(self.NKFFT,self.HH_R,self.iRvec)
-
+        try:
+            return self._E_K
+        except AttributeError:
+            self._E_K= wham.get_eig(self.NKFFT,self.HH_R,self.iRvec)
+            return self._E_K
 
     @lazy_property.LazyProperty
     def delE_K(self):
@@ -101,7 +109,6 @@ class Data_dk(Data):
     def UU_K(self):
         self._get_eig_deleig
         return self._UU_K
-
 
     @lazy_property.LazyProperty
     def UUC_K(self):

@@ -41,19 +41,6 @@ def eval_J0(A,occ):
 def eval_J12(B,unoccocc):
     return -2*np.sum(B*unoccocc[:,:,:,None],axis=(0,1,2))
 
-def get_occ(E_K,Efermi,smear,argmax=10):
-    occ=np.zeros(E_K.shape,dtype=float)
-    if smear<1e-8:
-        occ[E_K< Efermi]=1.
-        return occ
-    else:
-        arg=(E_K-Efermi)/smear
-        occ[arg<-argmax]=1.
-        sel=(np.abs(arg)<=argmax)
-        nsel=np.sum(sel)
-#        if nsel>0 : print nsel,' states near EF'
-        occ[ sel ]=1./(1.+np.exp(arg[sel]))
-        return occ
     
     
 def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=0,diff_occ_threshold=1e-5,tetra=False):
@@ -74,10 +61,8 @@ def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,s
     # now code for a single Fermi level:
     AHC=np.zeros((4,ncomp))
     
-    if tetra:
-        occ_new=data.get_occ_tetra(Efermi)
-    else:
-        occ_new=get_occ(data.E_K,Efermi,smear=smear)
+    occ_new=data.get_occ(Efermi,tetra=tetra,smear=smear)
+
     unocc_new=1.-occ_new
     unocc_old=1.-occ_old
     selectK=np.where(np.any(np.abs(occ_old-occ_new)>diff_occ_threshold,axis=1))[0]
