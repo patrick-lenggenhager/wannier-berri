@@ -51,7 +51,7 @@ def get_occ(E_K,Efermi,smear,argmax=10):
         occ[arg<-argmax]=1.
         sel=(np.abs(arg)<=argmax)
         nsel=np.sum(sel)
-        if nsel>0 : print nsel,' states near EF'
+#        if nsel>0 : print nsel,' states near EF'
         occ[ sel ]=1./(1.+np.exp(arg[sel]))
         return occ
     
