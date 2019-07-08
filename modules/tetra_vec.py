@@ -109,38 +109,71 @@ class Tetrahedra():
 
     def _get_e01234(self,select):
         return (self._E0[select],)+tuple([E for E in self._Etetra[select].T])
+
+
+    def _get_occ_range_43_(self,ef,e0,e1,e2,e3,e4,iv=None):
+        c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
+        dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
+        if iv<=3: 
+            return  1.  - c4 * (e4 - ef) / (e4 - e0) + dosef 
+        else:
+            return  1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2)  + 1. / (e4 - e3) ) ) + dosef 
+
+    def _get_occ_range_32_(self,ef,e0,e1,e2,e3,e4,iv=None):
+        c1 = (ef - e1) **2 / ((e4 - e1) * (e3 - e1))
+        c2 = (ef - e1) * (ef - e2) * (e3 - ef)  / ((e4 - e1) * (e3 - e2) * (e3 - e1))
+        c3 = (ef - e2) **2 * (e4 - ef) /( (e4 - e2)  * (e3 - e2) * (e4 - e1))
+        dosef = 0.1 / (e3 - e1) / (e4 - e1) * (3. * 
+                   (e2 - e1) + 6. * (ef - e2) - 3. * (e3 - e1 + e4 - e2) 
+                   * (ef - e2) **2 / (e3 - e2) / (e4 - e2) )* (e1 + e2 +  e3 + e4 - 4. * e0 ) 
+        if   iv==0:
+            return  c1 + (c1 + c2) * (e3 - ef) / (e3 - e1) + (c1 + c2 + c3) * (e4 - ef) / (e4 - e1) + dosef
+        elif iv==1:
+            return  c1 + c2 + c3 + (c2 + c3)  * (e3 - ef) / (e3 - e2) + c3 * (e4 - ef) / (e4 - e2) + dosef 
+        elif iv==2:
+            return  (c1 + c2) * (ef - e1) / (e3 - e1) + (c2 + c3) * (ef - e2) / (e3 - e2) + dosef 
+        elif iv==3:
+            return  (c1 + c2 + c3) * (ef - e1)  / (e4 - e1) + c3 * (ef - e2) / (e4 - e2) + dosef 
+
+    def _get_occ_range_21_(self,ef,e0,e1,e2,e3,e4,iv=None):
+        c4 = (ef - e1) **3 / (e2 - e1) / (e3 - e1) / (e4 - e1)
+        dosef = 0.3 * (ef - e1) **2 / (e2 - e1) / (e3 - e1) / (e4 - e1) * (e1 + e2 + e3 + e4 - 4. * e0 ) 
+        if   iv==0:
+            return   c4 * (4. - (ef - e1) * (1. / (e2 - e1) + 1. / (e3 - e1) + 1. / (e4 - e1) ) )   + dosef 
+        elif iv in (1,2,3):
+            return   c4 * (ef - e1) / (e0 - e1)  + dosef
+    
+    def _update_weights_(self,fun_get_occ,selectIV,iv,ef,weights):
+        e0,e1,e2,e3,e4=self._get_e01234(selectIV)
+        weights[selectIV]=fun_get_occ(ef,e0,e1,e2,e3,e4,iv)
+  
     
     def get_occ(self,ef):
 # TODO : save the quantities, which do not depend of Ef (or maybe not needed)
         weights=np.zeros(self._Etetra.shape[:-1])
 
 ##  First case :  Ef>=E4
-    
         select= (ef>=self._Etetra[:,:,:,3])
         weights[select] = 1.
-
 ##  second case :  E4>Ef>=E3
         select= (ef<self._Etetra[:,:,:,3])*(ef>=self._Etetra[:,:,:,2])
+        self._update_weights_( self._get_occ_range_43_ , select*self._sel_iv_123 , 1 , ef, weights)
+        self._update_weights_( self._get_occ_range_43_ , select*self._sel_iv_4   , 4 , ef, weights)
+##  third  case :  E3>Ef>=E2
+        select= (ef<self._Etetra[:,:,:,2])*(ef>=self._Etetra[:,:,:,1])
+        self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_1   , 1 , ef, weights)
+        self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_2   , 2 , ef, weights)
+        self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_3   , 3 , ef, weights)
+        self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_4   , 4 , ef, weights)
+##  fourth  case :  E3>Ef>=E2
+        select= (ef<self._Etetra[:,:,:,1])*(ef>=self._Etetra[:,:,:,0])
+        self._update_weights_( self._get_occ_range_21_ , select*self._sel_iv_1   , 1 , ef, weights)
+        self._update_weights_( self._get_occ_range_21_ , select*self._sel_iv_234 , 4 , ef, weights)        
 
-        selectIV=select*self._sel_iv_123
-        e0,e1,e2,e3,e4=self._get_e01234(selectIV)
-        c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
-        dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
-        weights[selectIV]  = 1.  - c4 * (e4 - ef) / (e4 - e0) + dosef 
-    
-        selectIV=select*self._sel_iv_4
-        e0,e1,e2,e3,e4=self._get_e01234(selectIV)
-        c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
-        dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
-        weights[selectIV] = 1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2)  + 1. / (e4 - e3) ) ) + dosef 
-        
-##  Third and Forth case to be implemented
-        
         weights=weights.sum(axis=-1)/24.
         self._average_degen(weights)
         return weights
        
-    
 
     @LazyProperty
     def _degen_groups(self):
