@@ -15,7 +15,7 @@ import numpy as np
 import wan_ham as wham
 import lazy_property
 from get_data import Data
-import tetra
+import tetra_vec as tetra
 
 class Data_dk(Data):
     def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d=(0,1,2),NKdiv=None):
@@ -70,17 +70,15 @@ class Data_dk(Data):
         ekneigh=dict()
         for shift in tetra.NEIGHBOURS:
             ekneigh[shift]=self._get_E_K_shifted(shift)
-        ekneigh_K=[
-           dict( {shift:ekneigh[shift][ik] for shift in tetra.NEIGHBOURS})
-              for ik in range(self.NKFFT_tot)
-                   ]
-        return ekneigh_K
+#        ekneigh_K=[
+#           dict( {shift:ekneigh[shift][ik] for shift in tetra.NEIGHBOURS})
+#              for ik in range(self.NKFFT_tot)
+#                   ]
+        return ekneigh
 
     def get_occ_tetra(self,Ef):
         print ("evaluating occ tetra for Ef=",Ef)
-        occ=np.zeros(self.E_K.shape)
-        for ik in range(self.NKFFT_tot):
-            occ[ik]=tetra.get_occ(self.E_K[ik],self.E_K_neighbours[ik],Ef)
+        return tetra.get_occ(self.E_K,self.E_K_neighbours,Ef)
         return occ
             
 

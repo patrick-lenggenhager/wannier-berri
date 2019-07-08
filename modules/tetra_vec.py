@@ -33,6 +33,10 @@
 #!
 
 
+# TODO : transform this module into a class, 
+#            and save quantities that are  needed for different Efermi
+
+
 import numpy as np
 
 __points=np.array([ [ 0, 0, 0],
@@ -67,7 +71,7 @@ NEIGHBOURS=set(tuple(p) for t in __TETRA_NEIGHBOURS for p in t)
 def Ntetra():  # should be 24
     return len(__TETRA_NEIGHBOURS)
 
-def weights_all(Etetra,Ef):
+def weights_all(Etetra,ef):
 #    Etetra is an array NKFFT x nband x Ntetra x 4
     # energies will be sorted, remember which is at the corner of interest
     # do it for one Ef here
@@ -83,11 +87,11 @@ def weights_all(Etetra,Ef):
 
 ##  First case :  Ef>=E4
     
-    select= Ef>=Etetra[:,:,:,3]
+    select= ef>=Etetra[:,:,:,3]
     weights[select]+=1.
 
 ##  second case :  E4>Ef>=E3
-    select= (Ef<Etetra[:,:,:,3])*(Ef>=Etetra[:,:,:,2])
+    select= (ef<Etetra[:,:,:,3])*(ef>=Etetra[:,:,:,2])
     E1234=Etetra[select]
     E0_sel=E0[select]
     iV=ivertex[select]
@@ -117,37 +121,35 @@ def weights_all(Etetra,Ef):
     weights[select]+=weights_select
 ##  Third and Forth case to be implemented
    
-   return weights.sum(axis=-1)/24.
+    return weights.sum(axis=-1)/24.
    
     
 
     
 
 
-def average_degen(E,weights):
+def average_degen(Eall,weights):
     # make sure that degenerate bands have same weights
-    borders=np.hstack( ( [0], np.where( (E[1:]-E[:-1])>1e-5)[0]+1, [len(E)]) )
-    degengroups=[ (b1,b2) for b1,b2 in zip(borders,borders[1:]) if b2-b1>1]
-    for b1,b2 in degengroups:
-       weights[b1:b2]=weights[b1:b2].mean()
+    for ik,E in enumerate(Eall):
+        borders=np.hstack( ( [0], np.where( (E[1:]-E[:-1])>1e-5)[0]+1, [len(E)]) )
+        degengroups=[ (b1,b2) for b1,b2 in zip(borders,borders[1:]) if b2-b1>1]
+        for b1,b2 in degengroups:
+           weights[ik,b1:b2]=weights[ik,b1:b2].mean()
 
 def weights_all_bands_1tetra(Etetra,Ef):
     weights=np.array([weights_1band(etetra,ef) for etetra in Etetra])
 
-def occ_factors(E,E_neigh,Ef):
+def get_occ(E,E_neigh,Ef):
 #  E_neigh is a dict (i,j,k):E 
 # where i,j,k = -1,0,+1 - are coordinates of a k-point, relative to the reference point
-    num_wann=E.shape[0]
-    assert( num_wann.shape[:3]==(3,3,3))
-    occ=np.zeros(num_wann)
-    weights=np.zeros(num_wann)
-    Etetra=np.zeros( (num_wann,4),dtype=float)
-    Etetra[:,0]=E
-    for tetra in __TETRA_NEIGHBOURS:
-       for i,p in enumerate(tetra):
-          Etetra[:,i+1]=E_neigh[tuple(p)]
-          weights+=weights_all_bands_1tetra(Etetra,Ef)
+    ntetra=Ntetra()
+    Etetra=np.zeros( E.shape+(ntetra,4),dtype=float)
+    for it,tetra in enumerate(__TETRA_NEIGHBOURS):
+        Etetra[:,:,it,0]=E
+        for j in range(3):
+            Etetra[:,:,it,j]=E_neigh[tuple(tetra[j])]
     
+    weights=weights_all(Etetra,Ef)
     average_degen(E,weights)
     return weights
 
