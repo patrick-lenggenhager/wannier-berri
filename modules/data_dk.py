@@ -17,12 +17,16 @@ import lazy_property
 from get_data import Data
 
 class Data_dk(Data):
-    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None):
+    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d="xyz"):
         self.spinors=data.spinors
         self.iRvec=data.iRvec
         self.real_lattice=data.real_lattice
         self.NKFFT=data.NKFFT if NKFFT is None else NKFFT
         self.num_wann=data.num_wann
+        # components_1d should be  a tuple of indices  0,1,2
+        self.components_1d=components_1d
+        self.alpha=np.array([wham.alpha[c] for c in self.components_1d])
+        self.beta =np.array([wham.beta [c] for c in self.components_1d])
 
         if dk is not None:
             expdk=np.exp(2j*np.pi*self.iRvec.dot(dk))
@@ -37,6 +41,11 @@ class Data_dk(Data):
                 self.AA_R=data.AA_R[:,:,:,:]*expdk[None,None,:,None]
             except AttributeError:
                 if AA : raise AttributeError("AA_R is not defined")
+
+    @lazy_property.LazyProperty
+    def ncomp1d(self):
+       return len(self.components_1d)
+
 
     @lazy_property.LazyProperty
     def _get_eig_deleig(self):
@@ -95,13 +104,13 @@ class Data_dk(Data):
 
     @lazy_property.LazyProperty
     def delHH_dE_SQ_K(self):
-         return  (self.delHH_dE_K[:,:,:,wham.beta]
-                         *self.delHH_dE_K[:,:,:,wham.alpha].transpose((0,2,1,3))).imag
+         return  (self.delHH_dE_K[:,:,:,self.beta]
+                         *self.delHH_dE_K[:,:,:,self.alpha].transpose((0,2,1,3))).imag
 
     @lazy_property.LazyProperty
     def delHH_dE_AA_K(self):
-         return ( (self.delHH_dE_K[:,:,:,wham.alpha]*self.AAUU_K.transpose((0,2,1,3))[:,:,:,wham.beta]).imag+
-               (self.delHH_dE_K.transpose((0,2,1,3))[:,:,:,wham.beta]*self.AAUU_K[:,:,:,wham.alpha]).imag  )
+         return ( (self.delHH_dE_K[:,:,:,self.alpha]*self.AAUU_K.transpose((0,2,1,3))[:,:,:,self.beta]).imag+
+               (self.delHH_dE_K.transpose((0,2,1,3))[:,:,:,self.beta]*self.AAUU_K[:,:,:,self.alpha]).imag  )
 
     @lazy_property.LazyProperty
     def UUU_K(self):
@@ -117,8 +126,8 @@ class Data_dk(Data):
     def OOmegaUU_K(self):
 #        print "running get_OOmegaUU_K.."
         _OOmega_K =  wham.fourier_R_to_k_hermitian( -1j*(
-                        self.AA_R[:,:,:,wham.alpha]*self.cRvec[None,None,:,wham.beta ] - 
-                        self.AA_R[:,:,:,wham.beta ]*self.cRvec[None,None,:,wham.alpha])   , self.iRvec, self.NKFFT )
+                        self.AA_R[:,:,:,self.alpha]*self.cRvec[None,None,:,self.beta ] - 
+                        self.AA_R[:,:,:,self.beta ]*self.cRvec[None,None,:,self.alpha])   , self.iRvec, self.NKFFT )
         return np.einsum("knmi,kmna->kia",self.UUU_K,_OOmega_K).real
 
 
@@ -131,8 +140,8 @@ unused="""
         except AttributeError:
             print "running get_OOmega_K.."
             self._OOmega_K=    -1j* wham.fourier_R_to_k( 
-                        self.AA_R[:,:,:,wham.alpha]*self.cRvec[None,None,:,wham.beta ] - 
-                        self.AA_R[:,:,:,wham.beta ]*self.cRvec[None,None,:,wham.alpha]   , self.iRvec, self.NKFFT )
+                        self.AA_R[:,:,:,self.alpha]*self.cRvec[None,None,:,self.beta ] - 
+                        self.AA_R[:,:,:,self.beta ]*self.cRvec[None,None,:,self.alpha]   , self.iRvec, self.NKFFT )
              
             return self._OOmega_K
 

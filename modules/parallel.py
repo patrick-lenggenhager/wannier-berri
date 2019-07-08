@@ -18,11 +18,13 @@ import functools
 import numpy as np
 from data_dk import Data_dk
 
+dict_xyz={"x":0,"y":1,"z":2}
 
 
 
 
-def eval_integral_BZ(func,Data,NKdiv=np.ones(3,dtype=int),parallel=False,nproc=1,NKFFT=None):
+def eval_integral_BZ(func,Data,NKdiv=np.ones(3,dtype=int),parallel=False,
+               nproc=1,NKFFT=None,components_1d="xyz"):
     """This function evaluates in parallel or serial an integral over the Brillouin zone 
 of a function func, which whould receive only one argument of type Data_dk, and return whatever object,
 for which the '+' operation is defined.
@@ -33,12 +35,15 @@ The parallelisation is done by NKdiv
 
 As a result, the integration will be performed ove NKFFT x NKdiv
 """
+    # trnslate xyz to indices
+    components_1d=np.array([dict_xyz[c] for c in components_1d])
+
     NKFFT=Data.NKFFT if NKFFT is None else NKFFT
     dk1=1./(NKFFT*NKdiv)
     dk_list=[dk1*np.array([x,y,z]) for x in range(NKdiv[0]) 
         for y in range(NKdiv[1]) for z in range(NKdiv[2]) ]
     paralfunc=functools.partial(
-        _eval_func_dk, func=func,Data=Data,NKFFT=NKFFT )
+        _eval_func_dk, func=func,Data=Data,NKFFT=NKFFT,components_1d=components_1d )
     if parallel:
         p=multiprocessing.Pool(nproc)
         return sum(p.map(paralfunc,dk_list))/len(dk_list)
@@ -46,7 +51,7 @@ As a result, the integration will be performed ove NKFFT x NKdiv
         return sum(paralfunc(dk) for dk in dk_list)/len(dk_list)
 
 
-def _eval_func_dk(dk,func,Data,NKFFT):
-    data_dk=Data_dk(Data,dk,NKFFT=NKFFT)
+def _eval_func_dk(dk,func,Data,NKFFT,components_1d):
+    data_dk=Data_dk(Data,dk,NKFFT=NKFFT,components_1d=components_1d)
     return func(data_dk)
 

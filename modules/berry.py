@@ -42,21 +42,26 @@ def get_occ(E_K,Efermi):
     return (E_K< Efermi)
         
 def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=None):
+
+
     if not( smear is None):
         return berry_frac.calcAHC(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear)
 
     if occ_old is None: 
         occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=bool)
+    
+    ncomp=data.ncomp1d
+
 
     if isinstance(Efermi, Iterable):
         nFermi=len(Efermi)
-        AHC=np.zeros( ( nFermi,4,3) ,dtype=float )
+        AHC=np.zeros( ( nFermi,4,ncomp) ,dtype=float )
         for iFermi in range(nFermi):
             AHC[iFermi]=calcAHC(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2)
         return np.cumsum(AHC,axis=0)
     
     # now code for a single Fermi level:
-    AHC=np.zeros((4,3))
+    AHC=np.zeros((4,ncomp))
 
     occ_new=get_occ(data.E_K,Efermi)
     unocc_new=np.logical_not(occ_new)
