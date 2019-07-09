@@ -38,6 +38,10 @@ class Tetrahedra():
         else:
             self.__TETRA_NEIGHBOURS,self._TETRA_WEIGHTS=taux.construct_tetra_generic()
         
+        
+        print ("Tetragons : ")
+        for t,w in zip(self.__TETRA_NEIGHBOURS,self._TETRA_WEIGHTS):
+            print w,"\n",t.dot(reclattice) 
 
         self.__NEIGHBOURS=set(tuple(p) for t in self.__TETRA_NEIGHBOURS for p in t)
         

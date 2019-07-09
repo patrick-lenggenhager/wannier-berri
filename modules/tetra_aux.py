@@ -3,9 +3,13 @@ import numpy as np
 
 class Transformer():
     def __init__(self,reclattice):
+        print "initializing transformer"
+        print "reclattice:\n",reclattice
         scale_a=np.max(abs(reclattice[:,0]))
+        scale_b=np.max(abs(reclattice[:,1]))
         scale_c=np.max(abs(reclattice[:,2]))
-        scale=np.array([scale_a,scale_a,scale_c])
+        scale=np.array([scale_a,scale_b,scale_c])
+        print ("scale is", scale)
         b1=reclattice[0]/scale
         b2=reclattice[1]/scale
         if b1.dot(b2)<0:b2=-b2
@@ -13,13 +17,15 @@ class Transformer():
 #        print "cross=",cross
         b3=(b1+b2+cross)/3.
         b4=(b1+b2-cross)/3.
+        print "b1,b2,b3,b4=\n",b1,b2,b3,b4
 #        print "b3,b4=",b3,b4
-        B=np.array([b3,b4]).dot(np.linalg.inv(reclattice))
+        B=np.array([b3,b4]).dot(np.linalg.inv(reclattice/scale[None,:]))
         b3=[b3,b4][np.argmin( np.abs(B-np.round(B)).max(axis=1) )]
+        print "b3=",b3
 #        b3=[b3,b4][np.argmin( np.linalg.norm([b3,b4],axis=1)-np.linalg.norm(b1)) ]
         b123=np.array([b1,b2,b3])*scale[None,:]
         B= np.array(b123.dot(np.linalg.inv(reclattice)).round(),dtype=int)
-#        print "reclattice,B,b123",reclattice,B,b123
+        print "reclattice,B,b123",reclattice,B,b123
         assert abs(np.linalg.det(B))==1
         self._trans=np.linalg.inv([[0,1,1],[1,0,1],[1,1,0]]).dot(B)
 

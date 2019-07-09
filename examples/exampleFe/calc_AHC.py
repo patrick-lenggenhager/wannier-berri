@@ -26,7 +26,7 @@ def main():
     
     t_read=time()
     eval_func=functools.partial(  calcAHC, Efermi=Efermi,tetra=True)
-    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=True,nproc=4,bcc=True)
+    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=False,nproc=4,bcc=True)
     t_calc=time()
 
     open(seedname+"_w19_ahc_fermi_scan.dat","w").write(
