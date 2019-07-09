@@ -58,7 +58,6 @@ class Tetrahedra_tmp():
 
     def _get_e01234(self,select):
         E = self._Etetra[select].T
-        
         return (self._E0[select],E[0],E[1],E[2],E[3],)#+tuple([E for E in self._Etetra[select].T])
 
 

@@ -65,24 +65,34 @@ def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,s
     
     print ("sum of occupations for Ef={0} : {1}".format(Efermi,occ_new.sum()/data.NKFFT_tot ))
 
-    unocc_new=1.-occ_new
-    unocc_old=1.-occ_old
-    selectK=np.where(np.any(np.abs(occ_old-occ_new)>diff_occ_threshold,axis=1))[0]
+#    unocc_new=1.-occ_new
+#    unocc_old=1.-occ_old
+    changed_occ= np.abs(occ_old-occ_new)>diff_occ_threshold
+    selectK=np.where(np.any(changed_occ,axis=1))[0]
+    selectB=np.where(np.any(changed_occ,axis=0))[0]
+    Bmin=selectB.min()
+    Bmax=selectB.max()+1
+    
     occ_old_selk=occ_old[selectK]
     occ_new_selk=occ_new[selectK]
+    
     unocc_old_selk=1.-occ_old_selk
     unocc_new_selk=1.-occ_new_selk
-    delocc=occ_new_selk-occ_old_selk
-    unoccocc=unocc_new_selk[:,:,None]*occ_new_selk[:,None,:]-unocc_old_selk[:,:,None]*occ_old_selk[:,None,:]
+
+    delocc=occ_new_selk[:,Bmin:Bmax]-occ_old_selk[:,Bmin:Bmax]
+        
+    if evalJ1 or evalJ2:
+        unoccocc_plus =unocc_old_selk[:,:,None]*delocc       [:,None,:]
+        unoccocc_minus=delocc[:,:,None]        *occ_new_selk [:,None,:] 
 
     if evalJ0:
-        AHC[0]= eval_J0(data.OOmegaUU_K[selectK], delocc)
+        AHC[0]= eval_J0(data.OOmegaUU_K[selectK,Bmin:Bmax], delocc)
     if evalJ1:
         B=data.delHH_dE_AA_K[selectK]
-        AHC[1]=eval_J12(B,unoccocc)
+        AHC[1]=eval_J12(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12(B[:,Bmin:Bmax,:],unoccocc_minus)
     if evalJ2:
         B=data.delHH_dE_SQ_K[selectK]
-        AHC[2]=eval_J12(B,unoccocc)
+        AHC[2]=eval_J12(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12(B[:,Bmin:Bmax,:],unoccocc_minus)
     AHC[3,:]=AHC[:3,:].sum(axis=0)
 
     occ_old[:,:]=occ_new[:,:]
