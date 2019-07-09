@@ -63,7 +63,7 @@ def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,s
     
     occ_new=data.get_occ(Efermi,tetra=tetra,smear=smear)
     
-    print ("sum of occupations for Ef={0} : {1}".format(Efermi,occ_new.sum()) )
+    print ("sum of occupations for Ef={0} : {1}".format(Efermi,occ_new.sum()/data.NKFFT_tot ))
 
     unocc_new=1.-occ_new
     unocc_old=1.-occ_old

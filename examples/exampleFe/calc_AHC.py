@@ -8,12 +8,14 @@ from  berry import calcAHC
 import functools
 from parallel import eval_integral_BZ
 from time import time
+import tetra_update as tetra
+
 
 def main():
     seedname="Fe"
     NKFFT=np.array([int(sys.argv[2])]*3)
     NKdiv=np.array([int(sys.argv[3])]*3)
-    Efermi=np.linspace(12.,13.,101)
+    Efermi=np.linspace(12,13,1001)
 #    Efermi=[12.6,]
 
     t_start=time()

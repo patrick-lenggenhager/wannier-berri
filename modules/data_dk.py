@@ -15,7 +15,8 @@ import numpy as np
 import wan_ham as wham
 import lazy_property
 from get_data import Data
-import tetra_vec as tetra
+import tetra_update as tetra
+#import tetra_vec as tetra
 
 class Data_dk(Data):
     def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d=(0,1,2),NKdiv=None):
@@ -61,8 +62,9 @@ class Data_dk(Data):
     def _get_E_K_shifted(self,shift):
     # shift is given in terms of "small" k-grid as integres
     # TODO : check if the shifted grid belongs to the original or one of calculated neighbour grids
-    # So far, let's recalculate them anyway
-        dk=np.array(shift)/(self.NKFFT*self.NKdiv)
+    # So far, let's recalculate them anyway, if it is not a bottleneck for performance, leave so
+        dk=np.array(shift,dtype=float)/(self.NKFFT*self.NKdiv)
+#        print ("dk=",dk)
         return Data_dk(self,dk=dk,AA=False,BB=False,CC=False,SS=False,NKFFT=self.NKFFT,NKdiv=self.NKdiv).E_K_only
 
 

@@ -33,9 +33,6 @@
 #!
 
 
-# TODO : transform this module into a class, 
-#            and save quantities that are  needed for different Efermi
-
 
 import numpy as np
 from lazy_property import LazyProperty
@@ -86,12 +83,14 @@ class Tetrahedra():
         for it,tetra in enumerate(self.__TETRA_NEIGHBOURS):
             self._Etetra[:,:,it,0]=data.E_K_only
             for j in range(3):
-                self._Etetra[:,:,it,j]=E_neigh[tuple(tetra[j])]
-
+                self._Etetra[:,:,it,j+1]=E_neigh[tuple(tetra[j])]
+                
         self._ivertex=self._Etetra.argsort(axis=-1).argmin(axis=-1)
         self._E0=self._Etetra[:,:,:,0]
         self._Etetra=np.sort(self._Etetra,axis=-1)
 
+        self.Ef_old=-np.Inf
+        
 
         self._sel_iv_1= (self._ivertex==0)
         self._sel_iv_2= (self._ivertex==1)
@@ -101,6 +100,8 @@ class Tetrahedra():
         self._sel_iv_234=np.logical_or(np.logical_or(self._sel_iv_2,self._sel_iv_3),self._sel_iv_4)
 
 
+#        self._Ef_old=-np.Inf
+#        self._occ_old=np.zeros(self._Etetra_min.shape,dtype=float)
 
            
     @LazyProperty
@@ -112,12 +113,15 @@ class Tetrahedra():
 
 
     def _get_occ_range_43_(self,ef,e0,e1,e2,e3,e4,iv=None):
-        c4 =  (e4 - ef) **3 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
-        dosef = 0.3 * (e4 - ef) **2 /((e4 - e1)* (e4 - e2) * (e4 - e3))*(e1 + e2 + e3 + e4 - 4. * e0 )
+        c4 =  (e4 - ef) **2 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
+        dosef = 0.3 * c4 *(e1 + e2 + e3 + e4 - 4. * e0 )
+        c4*= (e4 - ef)
         if iv<=3: 
             return  1.  - c4 * (e4 - ef) / (e4 - e0) + dosef 
-        else:
+        elif iv==4:
             return  1.  - c4 * (4. - (e4 - ef) * (1. / (e4 - e1) + 1. / (e4 - e2)  + 1. / (e4 - e3) ) ) + dosef 
+        else:
+            raise RuntimeError("incorrect value of iv={0} in _get_occ_range_43_".format(iv))
 
     def _get_occ_range_32_(self,ef,e0,e1,e2,e3,e4,iv=None):
         c1 = (ef - e1) **2 / ((e4 - e1) * (e3 - e1))
@@ -126,22 +130,27 @@ class Tetrahedra():
         dosef = 0.1 / (e3 - e1) / (e4 - e1) * (3. * 
                    (e2 - e1) + 6. * (ef - e2) - 3. * (e3 - e1 + e4 - e2) 
                    * (ef - e2) **2 / (e3 - e2) / (e4 - e2) )* (e1 + e2 +  e3 + e4 - 4. * e0 ) 
-        if   iv==0:
+        if   iv==1:
             return  c1 + (c1 + c2) * (e3 - ef) / (e3 - e1) + (c1 + c2 + c3) * (e4 - ef) / (e4 - e1) + dosef
-        elif iv==1:
-            return  c1 + c2 + c3 + (c2 + c3)  * (e3 - ef) / (e3 - e2) + c3 * (e4 - ef) / (e4 - e2) + dosef 
         elif iv==2:
-            return  (c1 + c2) * (ef - e1) / (e3 - e1) + (c2 + c3) * (ef - e2) / (e3 - e2) + dosef 
+            return  c1 + c2 + c3 + (c2 + c3)  * (e3 - ef) / (e3 - e2) + c3 * (e4 - ef) / (e4 - e2) + dosef 
         elif iv==3:
+            return  (c1 + c2) * (ef - e1) / (e3 - e1) + (c2 + c3) * (ef - e2) / (e3 - e2) + dosef 
+        elif iv==4:
             return  (c1 + c2 + c3) * (ef - e1)  / (e4 - e1) + c3 * (ef - e2) / (e4 - e2) + dosef 
+        else:
+            raise RuntimeError("incorrect value of iv={0} in _get_occ_range_32_".format(iv))
 
     def _get_occ_range_21_(self,ef,e0,e1,e2,e3,e4,iv=None):
-        c4 = (ef - e1) **3 / (e2 - e1) / (e3 - e1) / (e4 - e1)
-        dosef = 0.3 * (ef - e1) **2 / (e2 - e1) / (e3 - e1) / (e4 - e1) * (e1 + e2 + e3 + e4 - 4. * e0 ) 
-        if   iv==0:
+        c4 = (ef - e1) **2 / (e2 - e1) / (e3 - e1) / (e4 - e1)
+        dosef = 0.3  *c4* (e1 + e2 + e3 + e4 - 4. * e0 ) 
+        c4 *= (ef - e1)
+        if   iv==1:
             return   c4 * (4. - (ef - e1) * (1. / (e2 - e1) + 1. / (e3 - e1) + 1. / (e4 - e1) ) )   + dosef 
-        elif iv in (1,2,3):
+        elif iv in (2,3,4):
             return   c4 * (ef - e1) / (e0 - e1)  + dosef
+        else:
+            raise RuntimeError("incorrect value of iv={0} in _get_occ_range_21_".format(iv))
     
     def _update_weights_(self,fun_get_occ,selectIV,iv,ef,weights):
         e0,e1,e2,e3,e4=self._get_e01234(selectIV)
@@ -149,24 +158,29 @@ class Tetrahedra():
   
     
     def get_occ(self,ef):
-# TODO : save the quantities, which do not depend of Ef (or maybe not needed)
         weights=np.zeros(self._Etetra.shape[:-1])
 
-##  First case :  Ef>=E4
-        select= (ef>=self._Etetra[:,:,:,3])
+        select3= (ef>=self._Etetra[:,:,:,3])
+        select2= (ef>=self._Etetra[:,:,:,2])
+        select1= (ef>=self._Etetra[:,:,:,1])
+        select0= (ef>=self._Etetra[:,:,:,0])
+
+        ##  First case :  Ef>=E4
+        select= select3
         weights[select] = 1.
-##  second case :  E4>Ef>=E3
-        select= (ef<self._Etetra[:,:,:,3])*(ef>=self._Etetra[:,:,:,2])
+        ##  second case :  E4>Ef>=E3
+        select= np.logical_not(select3)*select2
         self._update_weights_( self._get_occ_range_43_ , select*self._sel_iv_123 , 1 , ef, weights)
         self._update_weights_( self._get_occ_range_43_ , select*self._sel_iv_4   , 4 , ef, weights)
-##  third  case :  E3>Ef>=E2
-        select= (ef<self._Etetra[:,:,:,2])*(ef>=self._Etetra[:,:,:,1])
+        ##  third  case :  E3>Ef>=E2
+        select= np.logical_not(select2)*select1
+#        select= (ef<self._Etetra[:,:,:,2])*(ef>=self._Etetra[:,:,:,1])
         self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_1   , 1 , ef, weights)
         self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_2   , 2 , ef, weights)
         self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_3   , 3 , ef, weights)
         self._update_weights_( self._get_occ_range_32_ , select*self._sel_iv_4   , 4 , ef, weights)
-##  fourth  case :  E3>Ef>=E2
-        select= (ef<self._Etetra[:,:,:,1])*(ef>=self._Etetra[:,:,:,0])
+        ##  fourth  case :  E2>Ef>=E1
+        select= np.logical_not(select1)*select0
         self._update_weights_( self._get_occ_range_21_ , select*self._sel_iv_1   , 1 , ef, weights)
         self._update_weights_( self._get_occ_range_21_ , select*self._sel_iv_234 , 4 , ef, weights)        
 
