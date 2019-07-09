@@ -26,9 +26,7 @@
 import numpy as np
 from scipy import constants as constants
 from collections import Iterable
-import berry_frac
-alpha=np.array([1,2,0])
-beta =np.array([2,0,1])
+
 fac_ahc = -1.0e8*constants.elementary_charge**2/constants.hbar
 
 
@@ -40,12 +38,16 @@ def eval_J12(B,unoccocc):
 
 def get_occ(E_K,Efermi):
     return (E_K< Efermi)
-        
+    
+    
 def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=None,tetra=False):
 
 
     if not( smear is None) or tetra:
-        return berry_frac.calcAHC(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear,tetra=tetra)
+        return calcAHC_frac(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear,tetra=tetra)
+
+
+#version with integer (actually boolean) occupation numbers
 
     if occ_old is None: 
         occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=bool)
@@ -66,25 +68,99 @@ def calcAHC(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,s
     occ_new=get_occ(data.E_K,Efermi)
     unocc_new=np.logical_not(occ_new)
     unocc_old=np.logical_not(occ_old)
-    selectK=np.where(np.any(occ_old!=occ_new,axis=1))[0]
+
+    changed_occ= occ_old!=occ_new
+    selectK=np.where(np.any(changed_occ,axis=1))[0]
+    selectB=np.where(np.any(changed_occ,axis=0))[0]
+    if len(selectB)>0:
+        Bmin=selectB.min()
+        Bmax=selectB.max()+1
+    else:
+        return AHC
+
     occ_old_selk=occ_old[selectK]
     occ_new_selk=occ_new[selectK]
     unocc_old_selk=unocc_old[selectK]
     unocc_new_selk=unocc_new[selectK]
-    delocc=occ_new_selk!=occ_old_selk
+    delocc=occ_new_selk[:,Bmin:Bmax]!=occ_old_selk[:,Bmin:Bmax]
     unoccocc_plus=unocc_new_selk[:,:,None]*delocc[:,None,:]
     unoccocc_minus=delocc[:,:,None]*occ_old_selk[:,None,:]
 
     if evalJ0:
-        AHC[0]= eval_J0(data.OOmegaUU_K[selectK], delocc)
+        AHC[0]= eval_J0(data.OOmegaUU_K[selectK,Bmin:Bmax], delocc)
     if evalJ1:
         B=data.delHH_dE_AA_K[selectK]
-        AHC[1]=eval_J12(B,unoccocc_plus)-eval_J12(B,unoccocc_minus)
+        AHC[1]=eval_J12(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12(B[:,Bmin:Bmax,:],unoccocc_minus)
     if evalJ2:
         B=data.delHH_dE_SQ_K[selectK]
-        AHC[2]=eval_J12(B,unoccocc_plus)-eval_J12(B,unoccocc_minus)
+        AHC[2]=eval_J12(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12(B[:,Bmin:Bmax,:],unoccocc_minus)
     AHC[3,:]=AHC[:3,:].sum(axis=0)
 
     occ_old[:,:]=occ_new[:,:]
     return AHC*fac_ahc/(data.NKFFT_tot*data.cell_volume)
 
+
+
+def eval_J0_frac(A,occ):
+    return np.sum(A*occ[:,:,None],axis=(0,1))
+
+def eval_J12_frac(B,unoccocc):
+    return -2*np.sum(B*unoccocc[:,:,:,None],axis=(0,1,2))
+
+    
+    
+#version with frctional  occupation numbers (Fermi-Dirac or tetrahedra)
+def calcAHC_frac(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True,smear=0,diff_occ_threshold=1e-5,tetra=False):
+
+    if occ_old is None: 
+        occ_old=np.zeros((data.NKFFT_tot,data.num_wann),dtype=float)
+
+    ncomp=data.ncomp1d
+
+
+    if isinstance(Efermi, Iterable):
+        nFermi=len(Efermi)
+        AHC=np.zeros( ( nFermi,4,ncomp) ,dtype=float )
+        for iFermi in range(nFermi):
+            AHC[iFermi]=calcAHC_frac(data,Efermi=Efermi[iFermi],occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2,smear=smear,tetra=tetra)
+        return np.cumsum(AHC,axis=0)
+    
+    # now code for a single Fermi level:
+    AHC=np.zeros((4,ncomp))
+    
+    occ_new=data.get_occ(Efermi,tetra=tetra,smear=smear)
+    
+#    print ("sum of occupations for Ef={0} : {1}".format(Efermi,occ_new.sum()/data.NKFFT_tot ))
+
+#    unocc_new=1.-occ_new
+#    unocc_old=1.-occ_old
+    changed_occ= np.abs(occ_old-occ_new)>diff_occ_threshold
+    selectK=np.where(np.any(changed_occ,axis=1))[0]
+    selectB=np.where(np.any(changed_occ,axis=0))[0]
+    Bmin=selectB.min()
+    Bmax=selectB.max()+1
+    
+    occ_old_selk=occ_old[selectK]
+    occ_new_selk=occ_new[selectK]
+    
+    unocc_old_selk=1.-occ_old_selk
+#    unocc_new_selk=1.-occ_new_selk
+
+    delocc=occ_new_selk[:,Bmin:Bmax]-occ_old_selk[:,Bmin:Bmax]
+        
+    if evalJ1 or evalJ2:
+        unoccocc_plus =unocc_old_selk[:,:,None]*delocc       [:,None,:]
+        unoccocc_minus=delocc[:,:,None]        *occ_new_selk [:,None,:] 
+
+    if evalJ0:
+        AHC[0]= eval_J0_frac(data.OOmegaUU_K[selectK,Bmin:Bmax], delocc)
+    if evalJ1:
+        B=data.delHH_dE_AA_K[selectK]
+        AHC[1]=eval_J12_frac(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12_frac(B[:,Bmin:Bmax,:],unoccocc_minus)
+    if evalJ2:
+        B=data.delHH_dE_SQ_K[selectK]
+        AHC[2]=eval_J12_frac(B[:,:,Bmin:Bmax],unoccocc_plus)-eval_J12_frac(B[:,Bmin:Bmax,:],unoccocc_minus)
+    AHC[3,:]=AHC[:3,:].sum(axis=0)
+
+    occ_old[:,:]=occ_new[:,:]
+    return AHC*fac_ahc/(data.NKFFT_tot*data.cell_volume)

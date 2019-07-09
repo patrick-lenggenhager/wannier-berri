@@ -19,18 +19,20 @@ import tetra_update as tetra
 #import tetra_vec as tetra
 
 class Data_dk(Data):
-    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d=(0,1,2),NKdiv=None):
+    def __init__(self,data,dk=None,AA=None,BB=None,CC=None,SS=None,NKFFT=None,components_1d=(0,1,2),NKdiv=None,tetra_type=""):
         self.spinors=data.spinors
         self.iRvec=data.iRvec
         self.real_lattice=data.real_lattice
         self.NKdiv=NKdiv    
         self.NKFFT=data.NKFFT if NKFFT is None else NKFFT
         self.num_wann=data.num_wann
+        self._tetra_type=tetra_type
+
         # components_1d should be  a tuple of indices  0,1,2
         self.components_1d=components_1d
         self.alpha=np.array([wham.alpha[c] for c in self.components_1d])
         self.beta =np.array([wham.beta [c] for c in self.components_1d])
-
+        print ("tetra_type is ",self._tetra_type," for data_dk")
         if dk is not None:
             expdk=np.exp(2j*np.pi*self.iRvec.dot(dk))
         else:
@@ -70,11 +72,11 @@ class Data_dk(Data):
 
     @lazy_property.LazyProperty
     def _tetra(self):
-        return tetra.Tetrahedra(self)
+        return tetra.Tetrahedra(self,latt_type=self._tetra_type,reclattice=self.reclattice)
 
     def get_occ(self,Ef,smear=None,tetra=False,argmax=10):
         if tetra:
-            print ("evaluating occ tetra for Ef=",Ef)
+#            print ("evaluating occ tetra for Ef=",Ef)
             return self._tetra.get_occ(Ef)
         else:
             occ=np.zeros(self._E_K.shape,dtype=float)

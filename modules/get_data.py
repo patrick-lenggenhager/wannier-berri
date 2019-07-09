@@ -21,13 +21,14 @@ import lazy_property
 
 class Data():
 
-    def __init__(self,seedname="wannier90",tb_file=None,getAA=False,getBB=False,getCC=False,getSS=False,NKFFT=None):
+    def __init__(self,seedname="wannier90",tb_file=None,getAA=False,getBB=False,getCC=False,getSS=False,NKFFT=None,latticetype=None):
         if tb_file is not None:
             self.__from_tb_file(tb_file,getAA=getAA,NKFFT=NKFFT)
             return
         f=open(seedname+"_HH_save.info","r")
         l=f.readline().split()[:3]
         self.seedname=seedname
+        self._latticetype=latticetype
         self.num_wann,nRvec,self.spinors=int(l[0]),int(l[1]),str2bool(l[2])
         self.real_lattice=np.array([f.readline().split()[:3] for i in range(3)],dtype=float)
         iRvec=np.array([f.readline().split()[:4] for i in range(nRvec)],dtype=int)
@@ -128,6 +129,11 @@ class Data():
     @lazy_property.LazyProperty
     def cell_volume(self):
         return np.linalg.det(self.real_lattice)
+
+
+    @lazy_property.LazyProperty
+    def reclattice(self):
+        return 2*np.pi*np.linalg.inv(self.real_lattice)
 
 
     def __getMat(self,suffix):
