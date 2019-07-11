@@ -39,7 +39,7 @@ class ws_dist_map():
                 if ir in self._iRvec_new[irnew]:
                     chsum+=self._iRvec_new[irnew][ir]
             chsum=np.abs(chsum-np.ones( (num_wann,num_wann) )).sum() 
-            if chsum>1e-12: print "WARNING: Check sum for ",ir," : ",chsum
+            if chsum>1e-12: print ("WARNING: Check sum for ",ir," : ",chsum)
         t2=time()
         print ("time for reading wsvec: {0}, for chsum: {1}".format(t1-t0,t2-t1))
 

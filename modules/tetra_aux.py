@@ -3,8 +3,8 @@ import numpy as np
 
 class Transformer():
     def __init__(self,reclattice):
-        print "initializing transformer"
-        print "reclattice:\n",reclattice
+        print ("initializing transformer")
+        print ("reclattice:\n",reclattice)
         scale_a=np.max(abs(reclattice[:,0]))
         scale_b=np.max(abs(reclattice[:,1]))
         scale_c=np.max(abs(reclattice[:,2]))
@@ -17,15 +17,15 @@ class Transformer():
 #        print "cross=",cross
         b3=(b1+b2+cross)/3.
         b4=(b1+b2-cross)/3.
-        print "b1,b2,b3,b4=\n",b1,b2,b3,b4
+        print ("b1,b2,b3,b4=\n",b1,b2,b3,b4)
 #        print "b3,b4=",b3,b4
         B=np.array([b3,b4]).dot(np.linalg.inv(reclattice/scale[None,:]))
         b3=[b3,b4][np.argmin( np.abs(B-np.round(B)).max(axis=1) )]
-        print "b3=",b3
+        print ("b3=",b3)
 #        b3=[b3,b4][np.argmin( np.linalg.norm([b3,b4],axis=1)-np.linalg.norm(b1)) ]
         b123=np.array([b1,b2,b3])*scale[None,:]
         B= np.array(b123.dot(np.linalg.inv(reclattice)).round(),dtype=int)
-        print "reclattice,B,b123",reclattice,B,b123
+        print ("reclattice,B,b123",reclattice,B,b123)
         assert abs(np.linalg.det(B))==1
         self._trans=np.linalg.inv([[0,1,1],[1,0,1],[1,1,0]]).dot(B)
 
@@ -39,7 +39,7 @@ def construct_tetra_bcc1(reclattice):
     trans=Transformer(reclattice)
     print ("constructing tetrahedra for bcc1 lattice")
     #let's write the point in coordinates where b1=[0,1,1], b2=[1,0,1], b3=[1,1,0]
-    points=np.array([np.roll([s1,s2,0],i) for i in range(3) for s1 in +1,-1 for s2 in +1,-1])
+    points=np.array([np.roll([s1,s2,0],i) for i in range(3) for s1 in (+1,-1) for s2 in (+1,-1)])
     nump=len(points)
     # now express in the  original reciprocal lattice vectors
     points_rec=trans(points)
@@ -70,7 +70,7 @@ def construct_tetra_bcc2(reclattice):
     print ("constructing tetrahedra for bcc2 lattice")
     #let's write the point in coordinates where b1=[0,1,1], b2=[1,0,1], b3=[1,1,0]
     #we construct 8 tetrahedra
-    tetrahedra=[ np.diag([s1,s2,s3]) for s1 in +1,-1  for s2 in +1,-1  for s3 in +1,-1 ]
+    tetrahedra=[ np.diag([s1,s2,s3]) for s1 in (+1,-1)  for s2 in (+1,-1)  for s3 in (+1,-1) ]
     # now express in the  original reciprocal lattice vectors
     tetrahedra=[trans(t) for t in tetrahedra]
     return tetrahedra,np.ones(8,dtype=float)/48

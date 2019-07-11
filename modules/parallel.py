@@ -44,18 +44,18 @@ As a result, the integration will be performed ove NKFFT x NKdiv
     if bcc:
         from tetra_aux import get_bcc_shift
         dk2=get_bcc_shift(Data.reclattice)/(NKFFT*NKdiv)
-        print "dk2=",dk2
+        print ("dk2=",dk2)
         dk_list=[(dk1*np.array([x,y,z]),"bcc1") for x in range(NKdiv[0]) 
             for y in range(NKdiv[1]) for z in range(NKdiv[2]) ]
         dk_list=dk_list+[(dk[0]+dk2,"bcc2") for  dk in dk_list]
         paralfunc=functools.partial(
             _eval_func_dk2, func=func,Data=Data,NKFFT=NKFFT,components_1d=components_1d,NKdiv=NKdiv )
-        print dk_list
+        print (dk_list)
         if parallel:
             p=multiprocessing.Pool(nproc)
-            return sum(p.map(paralfunc,dk_list))/len(dk_list)
+            return sum(p.map(paralfunc,dk_list))/np.prod(NKdiv)
         else:
-            return sum(paralfunc(dk) for dk in dk_list)/len(dk_list)
+            return sum(paralfunc(dk) for dk in dk_list)/np.prod(NKdiv)
     else:
         dk_list=[dk1*np.array([x,y,z]) for x in range(NKdiv[0]) 
             for y in range(NKdiv[1]) for z in range(NKdiv[2]) ]
