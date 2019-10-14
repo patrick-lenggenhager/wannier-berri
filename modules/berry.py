@@ -42,23 +42,23 @@ fac_morb =  -eV_au/bohr**2
 
 def eval_Jo_deg(A,degen):
 #    print (degen)
-    return np.array([A[ib1:ib2].sum(axis=0) for ib1,ib2 in degen])
+    return np.array([A[ib1:ib2].sum(axis=0)/ndeg for ib1,ib2,ndeg in degen])
 
 def eval_Juo_deg(B,degen):
-    return np.array([B[:ib1,ib1:ib2].sum(axis=(0,1)) + B[ib2:,ib1:ib2].sum(axis=(0,1)) for ib1,ib2 in degen])
+    return np.array([( B[:ib1,ib1:ib2].sum(axis=(0,1)) + B[ib2:,ib1:ib2].sum(axis=(0,1)) )/ndeg for ib1,ib2,ndeg in degen])
 
 def eval_Joo_deg(B,degen):
-    return np.array([B[ib1:ib2,ib1:ib2].sum(axis=(0,1))  for ib1,ib2 in degen])
+    return np.array([B[ib1:ib2,ib1:ib2].sum(axis=(0,1))/ndeg  for ib1,ib2,ndeg in degen])
 
 def eval_Juuo_deg(B,degen):
     return np.array([   sum(C.sum(axis=(0,1,2)) 
-                          for C in  (B[:ib1,:ib1,ib1:ib2],B[:ib1,ib2:,ib1:ib2],B[ib2:,:ib1,ib1:ib2],B[ib2:,ib2:,ib1:ib2]) )  
-                                      for ib1,ib2 in degen])
+                          for C in  (B[:ib1,:ib1,ib1:ib2],B[:ib1,ib2:,ib1:ib2],B[ib2:,:ib1,ib1:ib2],B[ib2:,ib2:,ib1:ib2]) )  /ndeg
+                                      for ib1,ib2,ndeg in degen])
 
 def eval_Juoo_deg(B,degen):
     return np.array([   sum(C.sum(axis=(0,1,2)) 
-                          for C in ( B[:ib1,ib1:ib2,ib1:ib2],B[ib2:,ib1:ib2,ib1:ib2])  )  
-                                      for ib1,ib2 in degen])
+                          for C in ( B[:ib1,ib1:ib2,ib1:ib2],B[ib2:,ib1:ib2,ib1:ib2])  )/ndeg
+                                      for ib1,ib2,ndeg in degen])
 
 
 

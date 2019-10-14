@@ -1,49 +1,53 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 DO_profile=True
 
 import sys
-sys.path.append('../../modules/')
+sys.path.append('/Users/stepan/ARBEIT/wannier19/modules/')
 import numpy as np
 import get_data
+import gyrotropic as gyro
 import berry
 import functools
 from parallel import eval_integral_BZ
 
+import cProfile
 
 def main():
     seedname="Fe"
-    NKtot=int(sys.argv[1])*int(sys.argv[2])
-    NKFFT=np.array([int(sys.argv[1])]*3)
-    NKdiv=np.array([int(sys.argv[2])]*3)
-    Efermi=np.linspace(12.0,13.,1000)
-#    Efermi=np.array([12.5])
+#NKFFT=    NKFFT=np.array([int(sys.argv[1])]*3)
+    NKFFT=np.array([16,16,16])
+    try:
+        NKdiv=np.array([int(sys.argv[1])]*3)
+    except:
+        NKdiv=np.array([1]*3)
+        
+#    Efermi=np.linspace(6.7,7.0,3001)
+    Efermi=np.linspace(6.7,7.0,3)
+#    Efermi=6.8
 #    Data=get_data.Data(tb_file='Fe_tb.dat',getAA=True)
     Data=get_data.Data(seedname,getAA=True,getBB=True,getCC=True)
-    
-    eval_func=functools.partial(  berry.calcMorb, Efermi=Efermi )
-#    eval_func=functools.partial(  berry.calcImfgh, Efermi=Efermi )
-    Morb_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=False,nproc=4) #.transpose ( (1,0,2,3) )*berry.fac_morb
-    print ("shape",Morb_all.shape)
+    eval_func=functools.partial(  gyro.calcMorb, Efermi=Efermi ,degen_thresh=0.001)
+    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=False,nproc=8)
+    print ("AHC= {}".format(AHC_all))
 
+    eval_func=functools.partial(  berry.calcMorb, Efermi=Efermi )
+    AHC_all=eval_integral_BZ(eval_func,Data,NKdiv,NKFFT=NKFFT,parallel=True,nproc=8)
+    print ("AHC= {}".format(AHC_all[0,:,3,:]))
+
+#    exit()
+#    AHC_all=np.zeros((len(Efermi),3))    
 ## now write the result
-    for name,arr in zip(['tot','LC','IC'],Morb_all):
-#    for name,arr in zip(['imf','img','imh'],Morb_all):
-      open(seedname+"_w19_Morb_{0}_NK={1}.dat".format(name,NKtot),"w").write(
-       "    ".join("{0:^15s}".format(s) for s in ["EF",]+
-                [a+b for a in ["M",] for b in "x","y","z"])+"\n"+
-      "\n".join(
-       "    ".join("{0:15.6f}".format(x) for x in [ef]+[x for x in ahc ]) 
-                      for ef,ahc in zip (Efermi,arr) )
-       +"\n")  
+#    open(seedname+"_w19_ahc_fermi_scan_NK={0}-{1}-{2}.dat".format(*(tuple(NKFFT*NKdiv))),"w").write(
+#       "    ".join("{0:^15s}".format(s) for s in ["EF","x","y","z"])+"\n"+
+#      "\n".join(
+#       "    ".join("{0:15.6f}".format(x) for x in [ef,ahc[0],ahc[1],ahc[2]]) 
+#                      for ef,ahc in zip (Efermi,AHC_all) )
+#       +"\n")  
           
 
- 
-if __name__ == '__main__':
-    if DO_profile:
-        import cProfile
-        cProfile.run('main()')
-    else:
-        main()
+main()
+
+#cProfile.run('main()')
 
 
 

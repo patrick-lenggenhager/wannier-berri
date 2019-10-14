@@ -76,8 +76,9 @@ class Data_dk(Data):
 
     @lazy_property.LazyProperty
     def _get_eig_deleig(self):
+
         print_my_name_start()
-        self._E_K,self._delE_K, self._UU_K, _HH_K, self._delHH_K =   wham.get_eig_deleig(self.NKFFT,self.HH_R,self.iRvec,self.cRvec)
+        self._E_K, self._UU_K, _HH_K, self._delHH_K =   wham.get_eig_deleig(self.NKFFT,self.HH_R,self.iRvec,self.cRvec)
 #        print("shapes:{},{},{}".format(_HH_K.shape,self.UUC_K.shape,self.UU_K.shape))
         self._HHUU_K=self._rotate(_HH_K) #    einsumk("kmi,kmn,knj->kij",self.UUH_K,_HH_K,self.UU_K).real
 #        self._HHUU_K=np.array([uc.dot(hh).dot(u).real for uc,hh,u in zip(self.UUC_K,_HH_K,self.UU_K)])
@@ -129,6 +130,18 @@ class Data_dk(Data):
         return self._delHH_K
 
     @lazy_property.LazyProperty
+    def delE_K(self):
+        delE=np.einsum("klla->kla",self._rotate_vec(self.delHH_K)  )
+        check=np.abs(delE).imag.max()
+        if check>1e-10: raise RuntimeError ("The band derivatives have considerable imaginary part: {0}".format(check))
+        return delE.real
+        
+#    print ("get_eig_deleig - done")
+
+
+
+
+    @lazy_property.LazyProperty
     def delHH_dE_K(self):
             print_my_name_start()
             _delHH_K_=self._rotate_vec(self.delHH_K)
@@ -155,6 +168,9 @@ class Data_dk(Data):
 #    def delHH_dE_AA_K(self):
 #         return ( (self.delHH_dE_K[:,:,:,wham.alpha]*self.AAUU_K.transpose((0,2,1,3))[:,:,:,wham.beta]).imag+
 #               (self.delHH_dE_K.transpose((0,2,1,3))[:,:,:,wham.beta]*self.AAUU_K[:,:,:,wham.alpha]).imag  )
+
+
+
 
 
     @lazy_property.LazyProperty

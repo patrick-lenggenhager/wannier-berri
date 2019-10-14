@@ -103,7 +103,7 @@ def get_eig(NK,HH_R,iRvec):
     return np.array([np.linalg.eigvalsh(Hk) for Hk in HH_K])
 
 
-def get_eig_deleig(NK,HH_R,iRvec,cRvec=None,calcdE=False):
+def get_eig_deleig(NK,HH_R,iRvec,cRvec=None):
     ## For all  k point on a NK grid this function returns eigenvalues E and
     ## derivatives of the eigenvalues dE/dk_a, using wham_get_deleig_a
     num_wann=HH_R.shape[0]
@@ -119,16 +119,8 @@ def get_eig_deleig(NK,HH_R,iRvec,cRvec=None,calcdE=False):
     delHH_R=1j*HH_R[:,:,:,None]*cRvec[None,None,:,:]
     delHH_K=fourier_R_to_k(delHH_R,iRvec,NK,hermitian=True)
     
-    if calcdE:
-        delE_K=np.einsum("kml,kmna,knl->kla",UU_K.conj(),delHH_K,UU_K)    
-        check=np.abs(delE_K).imag.max()
-        if check>1e-10: raiseruntimeError ("The band derivatives have considerable imaginary part: {0}".format(check))
-        delE_K=delE_K.real
-    else:
-        delE_K=None
-#    print ("get_eig_deleig - done")
 
-    return E_K, delE_K, UU_K, HH_K, delHH_K 
+    return E_K, UU_K, HH_K, delHH_K 
 
 
 
