@@ -2,6 +2,8 @@ import numpy as np
 from collections import Iterable
 
 from berry import fac_ahc, fac_morb, calcImf_K, calcImfgh_K
+from spin import calcSpin
+
 
 def calcAHC(data,Efermi,degen_thresh=None):
     def function(AHC,Efermi,data,degen,E_K_av,delE_K_av,ik):
@@ -24,14 +26,17 @@ def calcGyrotropic(data,Efermi,degen_thresh=None):
     def function(GYRO,Efermi,data,degen,E_K_av,delE_K_av,ik):
         imf,img,imh=calcImfgh_K(data,degen,ik )
         imgh=img-imh
-        for e,de,f,gh,ndeg in zip(E_K_av,delE_K_av,imf,imgh,degen):
+        spin=calcSpin(data,degen)
+        for e,de,f,gh,s,ndeg in zip(E_K_av,delE_K_av,imf,imgh,spin,degen):
             sel= Efermi>e
 #            print (de.shape,e.shape,GYRO.shape)
             GYRO[sel,0]+=de[:,None]*de[None,:]*ndeg[2]
             GYRO[sel,1]+=de[:,None]*f [None,:]*ndeg[2]
             GYRO[sel,2]+=de[:,None]*gh[None,:]*ndeg[2]
             GYRO[sel,3]+= f[:,None]*gh[None,:]*ndeg[2]
-    return __calcSmth_band(data,Efermi,(4,3,3) ,function,   degen_thresh=degen_thresh)*fac_morb/(data.NKFFT_tot)
+            GYRO[sel,4]+= f[:,None]*s [None,:]*ndeg[2]
+            GYRO[sel,5]+=de[:,None]*s [None,:]*ndeg[2]
+    return __calcSmth_band(data,Efermi,(6,3,3) ,function,   degen_thresh=degen_thresh)*fac_morb/(data.NKFFT_tot)
 
 
 

@@ -41,6 +41,13 @@ class Data_dk(Data):
             except AttributeError:
                 if AA : raise AttributeError("AA_R is not defined")
 
+        if SS in (None,True):
+            try:
+                self.SS_R=data.SS_R[:,:,:,:]*expdk[None,None,:,None]
+            except AttributeError:
+                if SS : raise AttributeError("SS_R is not defined")
+
+
 
         if BB in (None,True):
             try:
@@ -56,8 +63,6 @@ class Data_dk(Data):
 
 
 
-
-
     def _rotate(self,mat):
         print_my_name_start()
         return  np.array([a.dot(b).dot(c) for a,b,c in zip(self.UUH_K,mat,self.UU_K)])
@@ -70,6 +75,14 @@ class Data_dk(Data):
             res[:,:,:,i]=self._rotate(mat[:,:,:,i])
         print_my_name_start()
         return res
+
+
+    def _rotate_vec_rediag(self,mat):
+        print_my_name_start()
+        return np.einsum("klla->kla",self._rotate_vec(mat)  ).real
+
+
+
 #        return  np.array([a.dot(b).dot(c) for a,b,c in zip(self.UUH_K,mat,self.UU_K)])
 
 
@@ -104,6 +117,13 @@ class Data_dk(Data):
         return self._delE_K
 
     @lazy_property.LazyProperty
+    def SS_K(self):
+        print_my_name_start()    
+        self._get_eig_deleig
+        return self._rotate_vec_rediag(self.SS_R)
+
+
+    @lazy_property.LazyProperty
     def UU_K(self):
         print_my_name_start()
         print_my_name()
@@ -131,7 +151,7 @@ class Data_dk(Data):
 
     @lazy_property.LazyProperty
     def delE_K(self):
-        delE=np.einsum("klla->kla",self._rotate_vec(self.delHH_K)  )
+        delE=self._rotate_vec_rediag(self.delHH_K) 
         check=np.abs(delE).imag.max()
         if check>1e-10: raise RuntimeError ("The band derivatives have considerable imaginary part: {0}".format(check))
         return delE.real
@@ -236,8 +256,8 @@ class Data_dk(Data):
     def CCUU_K_rediag(self):
         print_my_name_start()
         _CC_K=wham.fourier_R_to_k( self.CC_R,self.iRvec,self.NKFFT)
-        _CC_K=self._rotate_vec( _CC_K )
-        return np.einsum("klla->kla",_CC_K).real
+        return self._rotate_vec_rediag( _CC_K )
+#        return np.einsum("klla->kla",_CC_K).real
 #        return np.einsum("kml,kmna,knl->kla",self.UUC_K,_CC_K,self.UU_K).real
 
 
