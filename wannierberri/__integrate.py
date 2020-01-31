@@ -35,14 +35,19 @@ from . import  __utility   as utility
 calculators_trans={ 
          'spin'       : spin.calcSpinTot,  
          'Morb'       : berry.calcMorb,
+         'Morbg'       : berry.calcMorbg,
+         'Morbg2'       : berry.calcMorbg2,
          'Morb2'       : berry.calcMorb2,
          'Morb_intr'       : berry.calcMorb_intr,
-         'ahc'        : berry.calcAHC ,
+         'ahc'         : berry.calcAHC ,
+         'ahc2'        : berry.calcAHC2 ,
          'ahc_band'   : gyrotropic.calcAHC ,
+         'Morb_band'   : gyrotropic.calcMorb ,
          'dos'        : dos.calc_DOS ,
          'cumdos'        : dos.calc_cum_DOS ,
          'nonabelian_spin' : nonabelian.spin , 
          'nonabelian_Morb' : nonabelian.Morb , 
+         'nonabelian_Morbg' : nonabelian.Morbg , 
          'nonabelian_Morb2' : nonabelian.Morb2 , 
          'nonabelian_Morb_intr' : nonabelian.Morb_intr , 
          'nonabelian_spinspin' : nonabelian.spinspin , 
@@ -61,8 +66,10 @@ calculators_trans={
 additional_parameters=defaultdict(lambda: defaultdict(lambda:None )   )
 additional_parameters_description=defaultdict(lambda: defaultdict(lambda:"no description" )   )
 
-additional_parameters            ['ahc_band']['degen_thresh']=0.001
-additional_parameters_description['ahc_band']['degen_thresh']='(eV) threshold to tread bands a degenerate'
+additional_parameters            ['ahc_band'] ['degen_thresh']=0.001
+additional_parameters            ['Morb_band']['degen_thresh']=0.001
+additional_parameters_description['ahc_band'] ['degen_thresh']='(eV) threshold to tread bands a degenerate'
+additional_parameters_description['Morb_band']['degen_thresh']=additional_parameters_description['ahc_band']['degen_thresh']
 
 for q in calculators_trans:
    if q.startswith('nonabelian'):

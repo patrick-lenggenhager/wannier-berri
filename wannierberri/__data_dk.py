@@ -131,7 +131,7 @@ class Data_dk(System):
     @lazy_property.LazyProperty
     def Berry_nonabelian(self):
         sbc=[(+1,alpha_A,beta_A),(-1,beta_A,alpha_A)]
-        return [ [ O[ib1:ib2,ib1:ib2,:]-1j*sum(s*np.einsum("mla,lna->mna",A[ib1:ib2,ib1:ib2,b],A[ib1:ib2,ib1:ib2,b]) for s,b,c in sbc) 
+        return [ [ O[ib1:ib2,ib1:ib2,:]-1j*sum(s*np.einsum("mla,lna->mna",A[ib1:ib2,ib1:ib2,b],A[ib1:ib2,ib1:ib2,c]) for s,b,c in sbc) 
                +sum(s*np.einsum("mla,lna->mna",X,Y) 
                    for ibl1,ibl2 in (([  (0,ib1)]  if ib1>0 else [])+ ([  (ib2,self.num_wann)]  if ib2<self.num_wann else []))
                      for s,b,c in sbc
@@ -143,7 +143,7 @@ class Data_dk(System):
 
 ##  TODO: When it works correctly - think how to optimize it
     @lazy_property.LazyProperty
-    def Morb_nonabelian(self):
+    def Morb_nonabelian_1(self):
         sbc=[(+1,alpha_A,beta_A),(-1,beta_A,alpha_A)]        
         Morb=[ [ M[ib1:ib2,ib1:ib2,:]-e*O[ib1:ib2,ib1:ib2,:]
     #         -1j*e*sum(s*np.einsum("mla,lna->mna",A[ib1:ib2,ib1:ib2,b],A[ib1:ib2,ib1:ib2,b]) for s,b,c in sbc)
@@ -153,17 +153,52 @@ class Data_dk(System):
                     for X,Y in [
                     (-D[ib1:ib2,ibl1:ibl2,b],-B[ibl1:ibl2,ib1:ib2,c]),
                     (B.transpose((1,0,2)).conj()[ib1:ib2,ibl1:ibl2,b],D[ibl1:ibl2,ib1:ib2,c]),
-                        (-1j*0*V[ib1:ib2,ibl1:ibl2,b],D[ibl1:ibl2,ib1:ib2,c])]
+                        (-1j*V[ib1:ib2,ibl1:ibl2,b],D[ibl1:ibl2,ib1:ib2,c])]
                            )
                         for (ib1,ib2),e in zip(deg,E)]
                      for M,O,A,B,D,V,deg,E,EK in zip( self.Morb_Hbar,self.Omega_Hbar,self.A_Hbar,self.B_Hbarbar,self.D_H,self.V_H,self.degen,self.E_K_degen,self.E_K) ]
         for ik,M in enumerate(Morb):
             for m,e,d in zip(M,self.E_K_degen[ik],self.degen[ik]):
-                if np.linalg.norm( m-m.transpose((1,0,2)).conj() ) > 1e-10: 
+                if np.linalg.norm( m-m.transpose((1,0,2)).conj() ) > 1e-6: 
                      raise RuntimeError("for ik={} e={} ({}-fold) the Morb is non-Hermitian:{} \n{}\n".format(ik,e,d[1]-d[0],np.linalg.norm( m-m.transpose((1,0,2)).conj() ),m)) 
         return Morb
-        
-        
+
+
+    @lazy_property.LazyProperty
+    def Morb_nonabelian(self):
+        return  [[m-e*o  for m,o,e in zip(M,O,E) ] 
+             for M,O,E in zip (self.Morb_nonabelian_g,self.Berry_nonabelian,self.E_K_degen)]
+
+
+    @lazy_property.LazyProperty
+    def Morb_nonabelian_g(self):
+        sbc=[(+1,alpha_A,beta_A),(-1,beta_A,alpha_A)]        
+        _check_Hermitian(self.Morb_Hbar ,"M_H"  )
+        _check_Hermitian(self.Omega_Hbar,"O_H"  )
+        _check_Hermitian(self.A_Hbar    ,"A_H"  )
+        _check_antiHermitian(self.D_H   ,"D_H"  )
+        _check_Hermitian(self.V_H       ,"V_H"  )
+
+
+        Morb=[ [ M[ib1:ib2,ib1:ib2,:]
+             -1j*e*sum(s*np.einsum("mla,lna->mna",A[ib1:ib2,ib1:ib2,b],A[ib1:ib2,ib1:ib2,c]) for s,b,c in sbc)
+               +sum(s*np.einsum("mla,lna->mna",X,Y) 
+                   for ibl1,ibl2 in (([  (0,ib1)]  if ib1>0 else [])+ ([  (ib2,self.num_wann)]  if ib2<self.num_wann else []))
+                     for s,b,c in sbc
+                    for X,Y in [
+                    (-D[ib1:ib2,ibl1:ibl2,b],B[ibl1:ibl2,ib1:ib2,c]),
+                    (-B.transpose((1,0,2)).conj()[ib1:ib2,ibl1:ibl2,b],D[ibl1:ibl2,ib1:ib2,c]),
+                        (-1j*e*D[ib1:ib2,ibl1:ibl2,b],D[ibl1:ibl2,ib1:ib2,c])]
+                           )
+                        for (ib1,ib2),e in zip(deg,E)]
+                     for M,A,B,D,deg,E in zip( 
+                              self.Morb_Hbar,self.A_Hbar,self.B_Hbar,self.D_H,self.degen,self.E_K_degen) ]
+        for ik,M in enumerate(Morb):
+            for m,e,d in zip(M,self.E_K_degen[ik],self.degen[ik]):
+                if np.linalg.norm( m-m.transpose((1,0,2)).conj() )/max(np.linalg.norm(m),1) > 1e-12: 
+                     raise RuntimeError("for ik={} e={} ({}-fold) the Morb is non-Hermitian:{} \n{}\n".format(ik,e,d[1]-d[0],np.linalg.norm( m-m.transpose((1,0,2)).conj() ),m)) 
+        return Morb
+
 
     @lazy_property.LazyProperty
     def HH_K(self):
@@ -246,17 +281,20 @@ class Data_dk(System):
             select=abs(dEig)<dEig_threshold
             dEig[select]=dEig_threshold
             _delHH_K_[select]=0
-            return -_delHH_K_/dEig[:,:,:,None]
+            X=-_delHH_K_/dEig[:,:,:,None]
+            return X # 0.5*(X-X.transpose((0,2,1,3)).conj())
 
     @lazy_property.LazyProperty
     def V_H(self):
-        return self._rotate_vec(self.delHH_K)
+        X=self._rotate_vec(self.delHH_K)
+        return 0.5*(X+X.transpose((0,2,1,3)).conj())
 
     @lazy_property.LazyProperty
     def Morb_Hbar(self):
         print_my_name_start()
         _CC_K=fourier_R_to_k( self.CC_R,self.iRvec,self.NKFFT)
-        return self._rotate_vec( _CC_K )
+        X= self._rotate_vec( _CC_K )
+        return 0.5*(X+X.transpose((0,2,1,3)).conj())
 
 
     @lazy_property.LazyProperty
@@ -270,7 +308,8 @@ class Data_dk(System):
     def A_Hbar(self):
         print_my_name_start()
         _AA_K=fourier_R_to_k( self.AA_R,self.iRvec,self.NKFFT,hermitian=True)
-        return self._rotate_vec( _AA_K )
+        X=self._rotate_vec( _AA_K )
+        return 0.5*(X+X.transpose((0,2,1,3)).conj())
 
 
 
@@ -287,8 +326,8 @@ class Data_dk(System):
         _OOmega_K =  fourier_R_to_k( -1j*(
                         self.AA_R[:,:,:,alpha_A]*self.cRvec[None,None,:,beta_A ] -     
                         self.AA_R[:,:,:,beta_A ]*self.cRvec[None,None,:,alpha_A])   , self.iRvec, self.NKFFT,hermitian=True )
-        return self._rotate_vec(_OOmega_K)
-
+        X = self._rotate_vec(_OOmega_K)
+        return 0.5*(X+X.transpose((0,2,1,3)).conj())
 
     @lazy_property.LazyProperty
     def B_Hbar(self):
@@ -299,7 +338,7 @@ class Data_dk(System):
     @lazy_property.LazyProperty
     def B_Hbarbar(self):
         print_my_name_start()
-        return self.B_Hbar-self.A_Hbar[:,:,:,:]*self.E_K[:,None,:,None]
+        return self.B_Hbar+self.A_Hbar[:,:,:,:]*self.E_K[:,None,:,None]
 
 
 #### These are only needed for the "old" (abelian) routines:
@@ -443,6 +482,21 @@ class Data_dk(System):
         return self._rotate_vec( _SS_K )
 
 
+
+def _check_Hermitian(AK,name="unknown"):
+    tr=(1,0,)+tuple(range(2,len(AK.shape)-1))
+    for i,a in enumerate(AK):
+        chk=abs(a-a.transpose(tr).conj()).max()
+        if chk > 1e-14:
+            print("WARNING: matrix {} at point {} is non Hermitian : {}".format(name,i,chk))
+
+
+def _check_antiHermitian(AK,name="unknown"):
+    tr=(1,0,)+tuple(range(2,len(AK.shape)-1))
+    for i,a in enumerate(AK):
+        chk=abs(a+a.transpose(tr).conj()).max()
+        if chk > 1e-14:
+            print("WARNING: matrix {} at point {} is non antiHermitian : {}".format(name,i,chk))
 
 unused="""
 

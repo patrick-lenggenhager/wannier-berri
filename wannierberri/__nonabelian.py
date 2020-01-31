@@ -38,10 +38,14 @@ def __curv(data):
 def __morb(data):
     return data.Morb_nonabelian
 
+
+def __morbg(data):
+    return data.Morb_nonabelian_g
+
 __dimensions=defaultdict(lambda : 1)
 
 #quantities that should be odd under TRS and inversion
-TRodd  = set(['spin','morb','vel','curv','curvE'])
+TRodd  = set(['spin','morb','morbg','vel','curv','curvE'])
 INVodd = set(['vel'])
 
 
@@ -82,13 +86,20 @@ def ahc(data,Efermi,degen_thresh):
 
 
 def Morb(data,Efermi,degen_thresh):
-    r1=nonabelian_general(data,Efermi,['morb'],degen_thresh=degen_thresh,mode='fermi-sea')
+    r1=nonabelian_general(data,Efermi,['morbg'],degen_thresh=degen_thresh,mode='fermi-sea')
     r2=nonabelian_general(data,Efermi,['curvE'],degen_thresh=degen_thresh,mode='fermi-sea')
     r3=nonabelian_general(data,Efermi,['curv'],degen_thresh=degen_thresh,mode='fermi-sea')
-    r3.data[:,:]=-r3.data[:,:]*Efermi[:,None]
-    return (r1+2*(r2+r3))*__berry.fac_morb*data.cell_volume
+    r3.data[:,:]=-2*r3.data[:,:]*Efermi[:,None]
+    return (r1+(r2+r3))*__berry.fac_morb*data.cell_volume
 
 
+def Morbg(data,Efermi,degen_thresh):
+    return nonabelian_general(data,Efermi,['morbg'],degen_thresh=degen_thresh,mode='fermi-sea',
+              factor=__berry.fac_morb*data.cell_volume)
+
+
+
+## this is equavalent to the previous routine - checked
 def Morb2(data,Efermi,degen_thresh):
     data.set_degen(degen_thresh=degen_thresh)
     res=np.zeros( (len(Efermi),3),dtype=float)

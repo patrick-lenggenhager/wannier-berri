@@ -109,21 +109,6 @@ def calcAHC(data,Efermi=None,occ_old=None):
     return AHC*fac_ahc/(data.NKFFT_tot*data.cell_volume)
 
 
-def calcMorb(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
-    if not isinstance(Efermi, Iterable):
-        Efermi=np.array([Efermi])
-    imfgh=calcImfgh(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2)
-    imf=imfgh[:,0,:,:]
-    img=imfgh[:,1,:,:]
-    imh=imfgh[:,2,:,:]
-    LCtil=fac_morb*(img-Efermi[:,None,None]*imf)
-    ICtil=fac_morb*(imh-Efermi[:,None,None]*imf)
-    Morb = LCtil + ICtil
-    return result.EnergyResultAxialV(Efermi,Morb[:,3,:])
-
-#    return np.array([Morb,LCtil,ICtil])
-
-
 def calcMorb_intr(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
     if not isinstance(Efermi, Iterable):
         Efermi=np.array([Efermi])
@@ -136,7 +121,125 @@ def calcMorb_intr(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=
     return result.EnergyResultAxialV(Efermi,fac_morb*res/data.NKFFT_tot)
 
 
-def calcMorb2(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
+def calcMorbg_band(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
+    if not isinstance(Efermi, Iterable):
+        Efermi=np.array([Efermi])
+    imgh=calcImg_band(data)
+    EK=data.E_K
+    res=np.zeros( (len(Efermi),3),dtype=float)
+    res[0,:]=imgh[EK<=Efermi[0]].sum(axis=0)
+    for i in range(1,len(Efermi)):
+        res[i]=res[i-1]+imgh[(EK<=Efermi[i])*(EK>Efermi[i-1])].sum(axis=0)
+    return result.EnergyResultAxialV(Efermi,fac_morb*res/data.NKFFT_tot)
+
+
+
+def calcMorb(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
+    if not isinstance(Efermi, Iterable):
+        Efermi=np.array([Efermi])
+    imfgh=calcImfgh(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2)
+    imf=imfgh[:,0,:,:]
+    img=imfgh[:,1,:,:]
+    imh=imfgh[:,2,:,:]
+    LCtil=fac_morb*(img-Efermi[:,None,None]*imf)
+    ICtil=fac_morb*(imh-Efermi[:,None,None]*imf)
+    Morb = LCtil + ICtil
+    return result.EnergyResultAxialV(Efermi,Morb[:,3,:])
+
+
+def calcMorbg(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True):
+    if not isinstance(Efermi, Iterable):
+        Efermi=np.array([Efermi])
+    imfgh=calcImfgh(data,Efermi=Efermi,occ_old=occ_old, evalJ0=evalJ0,evalJ1=evalJ1,evalJ2=evalJ2)
+    img=imfgh[:,1,:,:]
+    return result.EnergyResultAxialV(Efermi,fac_morb*img)
+
+#    return np.array([Morb,LCtil,ICtil])
+
+def calcMorbg2(data,Efermi=None):
+    img=calcImg_band(data)
+    res=np.zeros( (len(Efermi),3),dtype=float)
+    EK=data.E_K
+    res = np.array([img[EK<=Ef].sum(axis=0) for Ef in Efermi])
+    return result.EnergyResultAxialV(Efermi,res*fac_morb/data.NKFFT_tot)
+
+
+
+def calcMorb2(data,Efermi=None):
+    imgh=calcImgh_band(data)
+    imf=calcImf_band(data)
+    EK=data.E_K
+    imfE=imf*EK[:,:,None]
+    res=np.zeros( (len(Efermi),3),dtype=float)
+    res[0,:]=imgh[EK<=Efermi[0]].sum(axis=0)
+    for i,Ef in enumerate(Efermi):
+        res[i]= (imgh+2*(imfE-imf*Ef))[EK<=Ef].sum(axis=0)
+#        res[i]= (imgh+2*(imfE-imf*Ef))[EK<=Ef].sum(axis=0)
+    return result.EnergyResultAxialV(Efermi,res*fac_morb/data.NKFFT_tot)
+
+
+
+def calcImf_band(data):
+    AA=data.OOmegaUU_K_rediag
+    BB=data.delHH_dE_AA_delHH_dE_SQ_K
+#    BB=data.delHH_dE_AA_K
+#    BB=data.delHH_dE_SQ_K
+    return np.array([eval_Jo(A)-2*eval_Juo(B)  for A,B in zip (AA,BB) ] )
+
+
+#returns g-h
+def calcImgh_band(data):
+    
+    imgh=np.zeros( (data.NKFFT_tot,data.num_wann,3),dtype=float)
+    AA=data.HHAAAAUU_K
+    BB=data.CCUU_K_rediag-data.HHOOmegaUU_K
+    imgh+=np.array([eval_Jo(B)-4*eval_Joo(A)  for A,B in zip (AA,BB) ] )
+    
+    AA=data.delHH_dE_BB_K-data.delHH_dE_HH_AA_K
+    imgh+=-2*np.array([eval_Juo(A) for A in AA])
+
+    C,D=data.delHH_dE_SQ_HH_K
+    AA=C-D
+    imgh+=-2*np.array([eval_Juuo(A) for A in AA])
+    return imgh
+
+
+
+#returns g+h  Wrong!
+def calcImgh_plus_band__(data):
+    
+    AA=data.HHAAAAUU_K
+    BB=data.CCUU_K_rediag+data.HHOOmegaUU_K
+    imgh=np.array([eval_Jo(B) for A,B in zip (AA,BB) ] )
+    
+    AA=data.delHH_dE_BB_K+data.delHH_dE_HH_AA_K
+    imgh+=-2*np.array([eval_Juo(A) for A in AA])
+
+    C,D=data.delHH_dE_SQ_HH_K
+    AA=C+D
+    imgh+=-2*np.array([eval_Juuo(A) for A in AA])
+    return imgh
+
+
+
+
+
+def calcImg_band(data):
+    AA=data.HHAAAAUU_K
+    BB=data.CCUU_K_rediag
+    img=np.array([eval_Jo(B)-2*eval_Joo(A)  for A,B in zip (AA,BB) ] )
+    
+    AA=data.delHH_dE_BB_K#-data.delHH_dE_HH_AA_K
+    img+=-2*np.array([eval_Juo(A) for A in AA])
+
+    C,D=data.delHH_dE_SQ_HH_K
+    AA=C
+    img+=-2*np.array([eval_Juuo(A) for A in AA])
+    return img
+
+
+
+def calcAHC2(data,Efermi=None):
     imgh=calcImgh_band(data)
     imf=calcImf_band(data)
     dE=Efermi[1]-Efermi[0]
@@ -145,31 +248,33 @@ def calcMorb2(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True
     res=np.zeros( (len(Efermi),3),dtype=float)
     res[0,:]=imgh[EK<=Efermi[0]].sum(axis=0)
     for i,Ef in enumerate(Efermi):
-        res[i]= (imgh+2*(imfE-imf*Ef))[EK<=Ef].sum(axis=0)
-    return result.EnergyResultAxialV(Efermi,fac_morb*res/data.NKFFT_tot)
+        res[i]= imf[EK<=Ef].sum(axis=0)
+    return result.EnergyResultAxialV(Efermi,res*fac_morb/(data.NKFFT_tot))
 
 
 
 ### routines for a band-resolved mode
 
 def eval_Jo_deg(A,degen):
-    return np.array([A[ib1:ib2].sum(axis=0) for ib1,ib2 in degen])
+    return np.array([A[ib1:ib2].sum(axis=0) for ib1,ib2 in degen for i in range(ib2-ib1)])
 
 def eval_Juo_deg(B,degen):
-    return np.array([B[:ib1,ib1:ib2].sum(axis=(0,1)) + B[ib2:,ib1:ib2].sum(axis=(0,1)) for ib1,ib2 in degen])
+    return np.array([B[:ib1,ib1:ib2].sum(axis=(0,1)) + B[ib2:,ib1:ib2].sum(axis=(0,1)) 
+         for ib1,ib2 in degen  for i in range(ib2-ib1)])
 
 def eval_Joo_deg(B,degen):
-    return np.array([B[ib1:ib2,ib1:ib2].sum(axis=(0,1))  for ib1,ib2 in degen])
+    return np.array([B[ib1:ib2,ib1:ib2].sum(axis=(0,1))  
+         for ib1,ib2 in degen  for i in range(ib2-ib1)])
 
 def eval_Juuo_deg(B,degen):
     return np.array([   sum(C.sum(axis=(0,1,2)) 
                           for C in  (B[:ib1,:ib1,ib1:ib2],B[:ib1,ib2:,ib1:ib2],B[ib2:,:ib1,ib1:ib2],B[ib2:,ib2:,ib1:ib2]) )  
-                                      for ib1,ib2 in degen])
+                                    for ib1,ib2 in degen for i in range(ib2-ib1)])
 
 def eval_Juoo_deg(B,degen):
     return np.array([   sum(C.sum(axis=(0,1,2)) 
                           for C in ( B[:ib1,ib1:ib2,ib1:ib2],B[ib2:,ib1:ib2,ib1:ib2])  )  
-                                      for ib1,ib2 in degen])
+                           for ib1,ib2 in degen  for i in range(ib2-ib1)])
 
 
 
@@ -193,10 +298,6 @@ def eval_Juoo_deg(B,degen):
                                       for ib in range(B.shape[0])])
 
 
-def calcImf_band(data):
-    AA=data.OOmegaUU_K_rediag
-    BB=data.delHH_dE_AA_delHH_dE_SQ_K
-    return np.array([eval_Jo(A)-2*eval_Juo(B)  for A,B in zip (AA,BB) ] )
 
 
 def calcImf_band_kn(data):
@@ -205,38 +306,7 @@ def calcImf_band_kn(data):
 def calcImgh_band_kn(data):
     return result.KBandResult(calcImhg_band(data),TRodd=True,Iodd=False)
 
-#returns g-h
-def calcImgh_band(data):
-    
-    AA=data.HHAAAAUU_K
-    BB=data.CCUU_K_rediag-data.HHOOmegaUU_K
-    imgh=np.array([eval_Jo(B)-2*eval_Joo(A)  for A,B in zip (AA,BB) ] )
-    
-    AA=data.delHH_dE_BB_K-data.delHH_dE_HH_AA_K
-    imgh+=-2*np.array([eval_Juo(A) for A in AA])
 
-    C,D=data.delHH_dE_SQ_HH_K
-    AA=C-D
-    imgh+=-2*np.array([eval_Juuo(A) for A in AA])
-    return imgh
-
-
-
-
-
-def calcImg_band(data):
-    
-    AA=data.HHAAAAUU_K
-    BB=data.CCUU_K_rediag-data.HHOOmegaUU_K
-    imgh=np.array([eval_Jo(B)-2*eval_Joo(A)  for A,B in zip (AA,BB) ] )
-    
-    AA=data.delHH_dE_BB_K-data.delHH_dE_HH_AA_K
-    imgh+=-2*np.array([eval_Juo(A) for A in AA])
-
-    C,D=data.delHH_dE_SQ_HH_K
-    AA=C-D
-    imgh+=-2*np.array([eval_Juuo(A) for A in AA])
-    return imgh
 
 
 
@@ -247,16 +317,20 @@ def calcImfgh_K(data,degen,ik):
     s=2*eval_Joo_deg(data.HHAAAAUU_K[ik],degen)   
     img=eval_Jo_deg(data.CCUU_K_rediag[ik],degen)-s
     imh=eval_Jo_deg(data.HHOOmegaUU_K[ik],degen)+s
+#    print ("shapes1:",s.shape,imf.shape,img.shape,imh.shape)
 
 
     C=data.delHH_dE_BB_K[ik]
     D=data.delHH_dE_HH_AA_K[ik]
     img+=-2*eval_Juo_deg(C,degen)
     imh+=-2*eval_Juo_deg(D,degen)
+#    print ("shapes2:",s.shape,imf.shape,img.shape,imh.shape)
 
     C,D=data.delHH_dE_SQ_HH_K
-    img+=-2*eval_Juuo_deg(C[ik],degen) 
-    imh+=-2*eval_Juoo_deg(D[ik],degen)
+    img+=-2*eval_Juuo_deg(C[ik],degen)
+    a= -2*eval_Juoo_deg(D[ik],degen)
+#    print ("shapes3:",a.shape,imf.shape,img.shape,imh.shape)
+    imh+=a
 
     return imf,img,imh
 
@@ -267,7 +341,8 @@ def calcImf(data,degen_bands=None):
     BB=data.delHH_dE_AA_delHH_dE_SQ_K
     if degen_bands is None:
         degen_bands=[(b,b+1) for b in range(data.nbands)]
-    return np.array([eval_Jo_deg(A,degen_bands)-2*eval_Juo_deg(B,degen_bands)  for A,B in zip (AA,BB) ] )
+    return np.array([eval_Jo_deg(A,degen_bands)-2*eval_Juo_deg(B,degen_bands) 
+                 for A,B in zip (AA,BB) ] )
 
 
 def calcImf_K(data,degen_bands,ik):
@@ -326,7 +401,7 @@ def calcImfgh(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True
         imfgh[2,0]= eval_J0(data.HHOOmegaUU_K[selectK] , delocc)+s
     if evalJ1:
         B=data.delHH_dE_AA_K[selectK]
-        C=data.delHH_dE_BB_K[selectK]*0.
+        C=data.delHH_dE_BB_K[selectK]
         D=data.delHH_dE_HH_AA_K[selectK]
         imfgh[0,1]=eval_J12(B,UnoccOcc_plus)-eval_J12(B,UnoccOcc_minus)
         imfgh[1,1]=eval_J12(C,UnoccOcc_plus)-eval_J12(C,UnoccOcc_minus)
@@ -344,10 +419,6 @@ def calcImfgh(data,Efermi=None,occ_old=None, evalJ0=True,evalJ1=True,evalJ2=True
 
     occ_old[:,:]=occ_new[:,:]
     return imfgh/(data.NKFFT_tot)
-
-
-
-
 
 
 

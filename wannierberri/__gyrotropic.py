@@ -19,8 +19,8 @@ from .__berry import fac_ahc, fac_morb, calcImf_K, calcImfgh_K
 
 def calcAHC(data,Efermi,degen_thresh=None):
     E_K=data.E_K
-    degen_bands,E_K_av=__get_degen_bands(E_K,degen_thresh)
     AHC=np.zeros( (len(Efermi),3) )
+    degen_bands,E_K_av=__get_degen_bands(E_K,degen_thresh)
     for ik in range(data.NKFFT_tot):
         imf=calcImf_K(data,degen_bands[ik],ik )
         for e,f in zip(E_K_av[ik],imf):
@@ -30,14 +30,19 @@ def calcAHC(data,Efermi,degen_thresh=None):
     return result.EnergyResultAxialV(Efermi,AHC)
 
 
+
 def calcMorb(data,Efermi,degen_thresh=None):
-    def function(Morb,Efermi,data,degen,E_K_av,ik):
-        imf,img,imh=calcImfgh_K(data,degen,ik )
-        for e,f,g,h in zip(E_K_av,imf,img,imh):
+    Morb=np.zeros( (len(Efermi),3) )
+    degen_bands,E_K_av=__get_degen_bands(data.E_K,degen_thresh)
+    for ik in range(data.NKFFT_tot):
+        imf,img,imh=calcImfgh_K(data,degen_bands[ik],ik )
+        for e,f,g,h in zip(E_K_av[ik],imf,img,imh):
             sel= Efermi>e
-            Morb[sel]+=(g+h)
-            Morb[sel]+=-2*f[None,:]*Efermi[sel,None]
-    return __calcSmth_band(data,Efermi,(3,) ,function,   degen_thresh=degen_thresh)*fac_morb/(data.NKFFT_tot)
+            Morb[sel]+=(g-h)
+            Morb[sel]+=2*f[None,:]*(e-Efermi[sel,None])
+    Morb*=fac_morb/(data.NKFFT_tot)
+    return result.EnergyResultAxialV(Efermi,Morb)
+#    return __calcSmth_band(data,Efermi,(3,) ,function,   degen_thresh=degen_thresh)*fac_morb/(data.NKFFT_tot)
 
 
 
