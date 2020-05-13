@@ -149,6 +149,96 @@ class EnergyResult(Result):
         return EnergyResult(self.Energy,sym.transform_tensor(self.data,self.rank,TRodd=self.TRodd,Iodd=self.Iodd),self.smoother,self.TRodd,self.Iodd,self.rank)
 
 
+class ParametrizedResult(Result):
+    '''
+    A class for data defined for a set of n parameters whose values are given in the list 'params'.
+    Data is stored in an array 'data', where the first n dimensions index those parameters.
+    '''
+
+    def __init__(self,paramnames,params,data,smoother=voidsmoother(),TRodd=False,Iodd=False,rank=None):
+        self.nparams = len(params) # number of parameters
+        self.rank = len(data.shape[self.nparams:]) if rank is None else rank # shape of data without parameters
+        if self.rank > 0:
+            shape = data.shape[-self.rank:]
+            assert np.all(np.array(shape) == 3) # question: 3D?
+        assert (tuple([p.shape[0] for p in params]) == data.shape[:self.nparams]) # verify shape of 'data' matches number of parameter values
+        self.paramnames = paramnames
+        self.params = params
+        self.data = data
+        self.smoother = smoother
+        self.TRodd = TRodd
+        self.Iodd = Iodd
+
+
+    @Lazy
+    def dataSmooth(self):
+        return self.smoother(self.data)
+
+    def __mul__(self,other):
+        if isinstance(other,int) or isinstance(other,float) :
+            return ParametrizedResult(self.params,self.data*other,self.smoother,self.TRodd,self.Iodd,self.rank)
+        else:
+            raise TypeError("Result can only be multiplied by a number.")
+
+    def __add__(self,other):
+        assert self.TRodd == other.TRodd
+        assert self.Iodd  == other.Iodd
+        if other == 0:
+            return self
+        if np.linalg.norm(np.array([np.linalg.norm(self.params[p]-other.params[p]) for p in range(self.nparams)]))>1e-8:
+            raise RuntimeError ("Adding results with different parameter values is not allowed.")
+        if self.smoother != other.smoother:
+            raise RuntimeError ("Adding results with different smoothers = {} and {} is not allowed.".format(self.smoother,other.smoother))
+        return ParametrizedResult(self.params,self.data+other.data,self.smoother,self.TRodd,self.Iodd,self.rank)
+
+    def __sub__(self,other):
+        return self+(-1)*other
+
+
+    def write(self,name):
+        # assume, that the dimensions starting after parameters - are cartesian coordinates       
+        def getHead(n):
+           if n<=0:
+              return ['  ']
+           else:
+              return [a+b for a in 'xyz' for b in getHead(n-1)]
+        rank=len(self.data.shape[self.nparams:])
+        
+        # parameter value grid, shape (*self.data.shape[:self.nparams], self.nparams)
+        grid = np.transpose(np.array(np.meshgrid(*self.params, indexing='ij')),tuple(np.roll(np.arange(self.nparams+1),-1)))
+        
+        # number of values = number of grid points
+        nvalues = np.prod(grid.shape[:-1])
+
+        open(name,"w").write(
+           "    ".join("{0:^15s}".format(s) for s in self.paramnames+
+                [b for b in getHead(rank)*2])+"\n"+
+          "\n".join(
+           "    ".join("{0:15.6e}".format(x) for x in [x for x in p.reshape(-1)]+[x for x in data.reshape(-1)]+[x for x in datasm.reshape(-1)]) 
+                      for p,data,datasm in zip (grid.reshape(nvalues, self.nparams),
+                      self.data.reshape(nvalues, *self.data.shape[self.nparams:]),
+                      self.dataSmooth.reshape(nvalues, *self.dataSmooth.shape[self.nparams:]))  ) # reshape before zip to flatten grid
+               +"\n") 
+
+    @property
+    def _maxval(self):
+        return self.dataSmooth.max() 
+
+    @property
+    def _norm(self):
+        return np.linalg.norm(self.dataSmooth)
+
+    @property
+    def _normder(self):
+        return np.linalg.norm(self.dataSmooth[1:]-self.dataSmooth[:-1])
+    
+    @property
+    def max(self):
+        return np.array([self._maxval,self._norm,self._normder])
+
+
+    def transform(self,sym):
+        return ParametrizedResult(self.params,sym.transform_tensor(self.data,self.rank,TRodd=self.TRodd,Iodd=self.Iodd),self.smoother,self.TRodd,self.Iodd,self.rank) #TODO: check whether that works with the shape
 
 class EnergyResultScalar(EnergyResult):
     def __init__(self,Energy,data,smoother=voidsmoother):
