@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-num_proc=4
+num_proc=32
 
 # load numpy
 import numpy as np
@@ -13,7 +13,7 @@ import wannierberri as wberri
 
 # define paramters
 #omega = np.linspace(0.,1,100)
-Efermi = np.linspace(-2,2,100)
+Efermi = np.linspace(-4,3,100)
 
 # create system
 system = wberri.System(tb_file='Li2NaN_strain=0_tb.dat',getAA=True)
@@ -34,4 +34,15 @@ wberri.integrate(system,
     fout_name='Li2NaN_strain=0',
     symmetry_gen=generators,
     restart=False,
+)
+
+wberri.tabulate(system,
+    NK=100,
+    quantities=["V"],
+    numproc=num_proc,
+    adpt_num_iter=10,
+    fout_name='Li2NaN_strain=0',
+    symmetry_gen=generators,
+    ibands=np.arange(1,5),
+    Ef0=0
 )
