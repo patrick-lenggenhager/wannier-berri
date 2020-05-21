@@ -24,7 +24,8 @@ generators = [SYM.C6z, SYM.Mx*SYM.Inversion, SYM.TimeReversal, SYM.Inversion]
 
 
 wberri.integrate(system,
-    NK=100,
+    NKdiv=10,
+    NKFFT=10,
     Efermi=Efermi,
     #omega=omega
     smearEf=10,
@@ -37,12 +38,11 @@ wberri.integrate(system,
 )
 
 wberri.tabulate(system,
-    NK=100,
+    NKdiv=10,
+    NKFFT=10,
     quantities=["V"],
     numproc=num_proc,
-    adpt_num_iter=10,
     fout_name='Li2NaN_strain=0',
     symmetry_gen=generators,
-    ibands=np.arange(1,5),
-    Ef0=0
+    ibands=np.arange(0,4)
 )
